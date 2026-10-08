@@ -1,5 +1,7 @@
 # hermes-metrics-dash
 
+Built for [Hermes Agent](https://github.com/NousResearch/hermes-agent) by [Nous Research](https://nousresearch.com).
+
 Live per-request LLM metrics for a Hermes fleet: tokens, duration, and
 tokens/sec for every request, grouped per conversation per agent/model —
 including subagents (delegate_task) and MoA proposer/aggregator calls.
