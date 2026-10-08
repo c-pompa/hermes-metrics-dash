@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hermes Metrics — redesign mock v3 (2026-07-19)</title>
+<style>
+  :root {
+    --page: #f9f9f7; --surface-1: #fcfcfb; --surface-2: #f3f2ee;
+    --ink-1: #0b0b0b; --ink-2: #52514e; --ink-3: #6f6d67;
+    --line: #e1e0d9; --ring: #c3c2b7;
+    --good: #006300; --warn: #8a6300; --critical: #d03b3b;
+    --s1: #2a78d6; --s2: #1baf7a; --s3: #eda100; --s4: #008300; --s5: #4a3aa7;
+    --fs-xs: 10.5px; --fs-sm: 11.5px; --fs-md: 12.5px; --fs-lg: 14px;
+    --z-tip: 40;
+  }
+  @media (prefers-color-scheme: dark) {
+    html[data-theme="auto"] :root, :root {
+      --page: #0d0d0d; --surface-1: #1a1a19; --surface-2: #22221f;
+      --ink-1: #ffffff; --ink-2: #c3c2b7; --ink-3: #a3a19a;
+      --line: #333330; --ring: #4a4a44;
+      --good: #4ec94e; --warn: #e0aa3e; --critical: #e66767;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--page); color: var(--ink-1); font: var(--fs-lg)/1.45 system-ui, -apple-system, sans-serif; }
+  .wrap { max-width: 1500px; margin: 0 auto; padding: 14px 18px 60px; }
+  .mono, .v, td { font-variant-numeric: tabular-nums; }
+  .m { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: var(--fs-sm); }
+
+  /* mock annotation system */
+  .mockbanner { background: color-mix(in srgb, var(--s1) 10%, var(--surface-1)); border: 1px solid color-mix(in srgb, var(--s1) 35%, var(--line)); border-radius: 10px; padding: 10px 14px; font-size: var(--fs-md); color: var(--ink-2); margin-bottom: 14px; }
+  .mockbanner b { color: var(--ink-1); }
+  .tag { display: inline-block; font-size: 9.5px; font-weight: 700; letter-spacing: .05em; color: var(--s1); border: 1px solid color-mix(in srgb, var(--s1) 40%, var(--line)); border-radius: 4px; padding: 0 4px; vertical-align: 2px; margin-left: 6px; cursor: help; position: relative; }
+  .tag.new { color: var(--s4); border-color: color-mix(in srgb, var(--s4) 40%, var(--line)); }
+  .tag:hover::after { content: attr(data-tip); position: absolute; z-index: var(--z-tip); background: var(--surface-1); border: 1px solid var(--ring); border-radius: 8px; padding: 8px 10px; font-size: var(--fs-sm); color: var(--ink-1); max-width: 340px; box-shadow: 0 6px 20px rgba(0,0,0,.18); margin: 14px 0 0 -10px; text-transform: none; letter-spacing: 0; font-weight: 400; width: 320px; }
+
+  header.top { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-bottom: 4px; }
+  header.top h1 { font-size: 17px; margin: 0; }
+  .urlhint { font-size: var(--fs-xs); color: var(--ink-3); margin-bottom: 10px; }
+  .urlhint code { background: var(--surface-2); border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; }
+  kbd { font: 10px ui-monospace, Menlo, monospace; background: var(--surface-2); border: 1px solid var(--ring); border-bottom-width: 2px; border-radius: 4px; padding: 0 4px; }
+  .envbadge { font-size: var(--fs-sm); color: var(--ink-2); border: 1px solid var(--line); background: var(--surface-1); border-radius: 999px; padding: 3px 10px; }
+  .envbadge b { color: var(--s4); font-weight: 600; }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--surface-1); }
+  .seg button { border: 0; background: none; padding: 4px 10px; font-size: var(--fs-sm); color: var(--ink-2); cursor: pointer; }
+  .seg button.on { background: var(--s1); color: #fff; }
+  .btn { border: 1px solid var(--ring); background: var(--surface-1); color: var(--ink-1); border-radius: 8px; padding: 4px 10px; font-size: var(--fs-sm); cursor: pointer; }
+  .btn.primary { background: var(--s1); border-color: var(--s1); color: #fff; }
+
+  /* R1: fleet strip */
+  .fleet { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 10px; margin-bottom: 12px; }
+  .hostcard { background: var(--surface-1); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; }
+  .hostcard .hh { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--good); }
+  .dot.stale { background: var(--warn); }
+  .hostcard .hh b { font-size: var(--fs-lg); }
+  .hostcard .hh .age { margin-left: auto; font-size: var(--fs-xs); color: var(--ink-3); }
+  .meters { display: flex; gap: 14px; font-size: var(--fs-sm); color: var(--ink-2); margin-bottom: 2px; align-items: baseline; }
+  .meter b { color: var(--ink-1); font-weight: 600; }
+  .spark { display: inline-block; vertical-align: -2px; margin-left: 4px; }
+  .bar { height: 4px; border-radius: 2px; background: var(--surface-2); overflow: hidden; margin: 2px 0 8px; }
+  .bar i { display: block; height: 100%; background: var(--s1); }
+  .models { display: flex; flex-wrap: wrap; gap: 4px; }
+  .chip { font-size: var(--fs-xs); border: 1px solid var(--line); border-radius: 999px; padding: 2px 8px; background: var(--surface-2); color: var(--ink-2); }
+  .chip .dev { color: var(--s1); }
+
+  /* KPI row (slimmed) */
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-bottom: 14px; }
+  .tile { background: var(--surface-1); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; }
+  .tile .k { font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: .06em; color: var(--ink-3); }
+  .tile .v { font-size: 22px; font-weight: 600; }
+  .tile .sub { font-size: var(--fs-xs); color: var(--ink-3); }
+
+  section.card { background: var(--surface-1); border: 1px solid var(--line); border-radius: 12px; padding: 12px 16px; margin-bottom: 14px; }
+  section.card > h2 { font-size: 13px; margin: 0 0 8px; display: flex; align-items: center; flex-wrap: wrap; gap: 4px; }
+  section.card > h2 .note { margin-left: auto; font-size: var(--fs-xs); color: var(--ink-3); font-weight: 400; }
+  .grid2 { display: grid; grid-template-columns: 7fr 5fr; gap: 14px; }
+  @media (max-width: 1050px) { .grid2 { grid-template-columns: 1fr; } }
+
+  table { border-collapse: collapse; width: 100%; font-size: var(--fs-md); }
+  th { font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: .05em; color: var(--ink-3); text-align: left; padding: 4px 8px; border-bottom: 1px solid var(--line); }
+  td { padding: 4px 8px; border-bottom: 1px solid var(--surface-2); }
+  tr:last-child td { border-bottom: 0; }
+  .pill { font-size: var(--fs-xs); border-radius: 999px; padding: 1px 7px; border: 1px solid var(--line); }
+  .pill.api { color: var(--s1); } .pill.err { color: var(--critical); }
+  .pill.cloud { color: var(--s5); border-style: dashed; }
+  .tpsbar { height: 8px; border-radius: 2px; background: linear-gradient(90deg, var(--s2), var(--s1)); min-width: 2px; }
+  .count { font-size: var(--fs-xs); color: var(--critical); font-weight: 700; }
+
+  .fakechart { position: relative; height: 240px; background:
+      repeating-linear-gradient(0deg, transparent 0 47px, var(--line) 47px 48px),
+      var(--surface-1); border-radius: 8px; }
+  .fakechart svg { width: 100%; height: 100%; display: block; }
+  .marker { position: absolute; top: 0; bottom: 0; width: 0; border-left: 1px dashed var(--warn); }
+  .marker span { position: absolute; top: 4px; left: 4px; font-size: var(--fs-xs); color: var(--warn); white-space: nowrap; }
+
+  .modelstats { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px; margin-top: 8px; }
+  .modelstat { border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; font-size: var(--fs-sm); color: var(--ink-2); }
+  .modelstat .m { color: var(--ink-1); }
+  .modelstat .lat { color: var(--ink-3); }
+
+  .empty { border: 1px dashed var(--ring); border-radius: 10px; padding: 18px; text-align: center; color: var(--ink-3); font-size: var(--fs-md); }
+  .empty b { color: var(--ink-2); }
+  .empty .cta { margin-top: 10px; }
+
+  .convo { border: 1px solid var(--line); border-radius: 10px; margin-bottom: 8px; }
+  .convo .head { display: flex; gap: 10px; align-items: baseline; padding: 8px 12px; }
+  .convo .head b { font-size: var(--fs-md); }
+  .convo .head .m2 { margin-left: auto; font-size: var(--fs-xs); color: var(--ink-3); }
+  .convo .rows { padding: 0 12px 8px; font-size: var(--fs-sm); color: var(--ink-2); }
+  .degraded { font-size: var(--fs-xs); color: var(--warn); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="mockbanner">
+    <b>Redesign mock v3</b> — static HTML with your real data (2026-07-19). Chips mark proposed changes:
+    <b>R1–R7</b> (round 1), <b style="color:var(--s4)">N1–N10</b> (round 2), <b style="color:var(--s4)">N11–N17</b> (round 3 — this pass). Hover any chip for the rationale. Nothing here is wired to the server.
+  </div>
+
+  <div class="mockbanner" style="background:color-mix(in srgb, var(--warn) 10%, var(--surface-1)); border-color:color-mix(in srgb, var(--warn) 40%, var(--line))">
+    <b>Warning: WinPC is stale</b> — no host stats for 6h (forwarder down or box asleep). Requests still accepted from other hosts.
+    <span class="tag new" data-tip="N15 — Health banner: one rule per host/forwarder — no host_stats for >5 min = stale, show a single dismissible banner. The data (host_stats ts per host) is already here; today a dead forwarder is invisible until you notice missing charts. This mock shows it in its active state because WinPC really is stale right now.">N15</span>
+  </div>
+
+  <header class="top">
+    <h1>Hermes LLM Metrics</h1>
+    <span class="envbadge">env mode: <b>single-model</b> <span class="tag" data-tip="R6 — The active env mode becomes page context: shown in the header, and mode changes are marked on the speed chart, because a mode change redefines what 'good' t/s is. Needs a record kind (or reading active-mode.json ts) to know when changes happened.">R6</span></span>
+    <span class="seg" aria-label="theme"><button>Light</button><button class="on">Auto</button><button>Dark</button></span>
+    <span class="seg" aria-label="range"><button>1h</button><button class="on">24h</button><button>7d</button><button>30d</button></span>
+    <span style="font-size:var(--fs-xs); color:var(--ink-3)"><kbd>/</kbd> search · <kbd>j</kbd><kbd>k</kbd> feed · <kbd>e</kbd> errors <span class="tag new" data-tip="N7 — Keyboard shortcuts: / focuses search, j/k move through feed rows, e toggles errors-only. Fits the ops-console character; small handler on top of existing state.">N7</span></span>
+  </header>
+  <div class="urlhint">state in URL: <code>#/host=mbp&amp;kind=api&amp;range=24h</code> — shareable views <span class="tag new" data-tip="N8 — Filter/sort/range state serializes into the location hash, so 'look at this' is a paste-able link. Read on load, write on change; backward compatible with the plain #/ and #/benchmark routes.">N8</span></div>
+
+  <!-- R1: fleet strip answers "is everything alive?" before anything else -->
+  <div class="fleet">
+    <div class="hostcard">
+      <div class="hh"><span class="dot"></span><b>mini</b><span class="age">last stats 4s ago</span>
+        <span class="tag" data-tip="R1 — Fleet strip: host_stats and pool_status move out of the request feed into per-host cards: alive/stale dot, CPU+RAM right now, loaded models with serving device. 75% of all records are pool heartbeats — they deserve a dedicated panel, not the feed.">R1</span></div>
+      <div class="meters"><span class="meter">CPU <b>1.2</b><svg class="spark" width="60" height="14" viewBox="0 0 60 14"><polyline points="0,10 10,8 20,9 30,6 40,7 50,5 60,6" fill="none" stroke="#2a78d6" stroke-width="1.2"/></svg></span><span class="meter">RAM <b>21.4/32 GB</b><svg class="spark" width="60" height="14" viewBox="0 0 60 14"><polyline points="0,6 10,6 20,7 30,7 40,8 50,8 60,9" fill="none" stroke="#1baf7a" stroke-width="1.2"/></svg> <span class="tag new" data-tip="N4 — Sparklines in fleet cards: 30s-cadence CPU/mem trend from host_stats, tiny inline SVGs. Glanceable trend without opening the diagnostics accordion.">N4</span></span><span class="meter">req 24h <b>41</b></span></div>
+      <div class="bar"><i style="width:67%"></i></div>
+      <div class="models"><span class="chip m">qwen3.6-35b…distilled <span class="dev">· mini · up 3d</span></span><span class="chip m">supergemma4-26b…v2 <span class="dev">· mini · up 5d</span></span><span class="chip m">nomic-embed <span class="dev">· mini · up 12d</span></span> <span class="tag new" data-tip="N14 — Model load uptime / unload events: pool_status heartbeats are noise in the feed but gold as transitions — derive 'loaded since' per model (and a small unload log in diagnostics). Finally tells you when LM Studio silently evicts a model. Uses data you already ship every 30s.">N14</span></div>
+    </div>
+    <div class="hostcard">
+      <div class="hh"><span class="dot"></span><b>mbp</b><span class="age">last stats 2s ago</span></div>
+      <div class="meters"><span class="meter">CPU <b>0.8</b><svg class="spark" width="60" height="14" viewBox="0 0 60 14"><polyline points="0,8 10,9 20,7 30,8 40,10 50,6 60,7" fill="none" stroke="#2a78d6" stroke-width="1.2"/></svg></span><span class="meter">RAM <b>17.1/24 GB</b><svg class="spark" width="60" height="14" viewBox="0 0 60 14"><polyline points="0,7 10,7 20,6 30,8 40,8 50,7 60,8" fill="none" stroke="#1baf7a" stroke-width="1.2"/></svg></span><span class="meter">req 24h <b>94</b></span></div>
+      <div class="bar"><i style="width:71%"></i></div>
+      <div class="models"><span class="chip m">qwen3.6-35b…distilled <span class="dev">· mbp</span></span><span class="chip m">supergemma4-26b…v2 <span class="dev">· mbp</span></span><span class="chip m">nomic-embed <span class="dev">· mbp</span></span></div>
+    </div>
+    <div class="hostcard">
+      <div class="hh"><span class="dot stale"></span><b>WinPC</b><span class="age">last sample 6h ago</span></div>
+      <div class="meters"><span class="meter">CPU <b>—</b></span><span class="meter">RAM <b>—</b></span><span class="meter">power <b>no data</b> <span class="tag new" data-tip="N9 — WinPC power is broken today: 0/5000 samples have power_w — nvidia-smi output never lands in the forwarder. Debug the sampling path first; then the yield table gains t/s per watt.">N9</span></span></div>
+      <div class="bar"><i style="width:0%"></i></div>
+      <div class="models"><span class="chip m">qwen3.6-27b…aggressive <span class="dev">· WinPC</span></span></div>
+    </div>
+  </div>
+
+  <div class="kpis">
+    <div class="tile"><div class="k">Requests 24h</div><div class="v">135</div><div class="sub">12 sessions</div></div>
+    <div class="tile"><div class="k">Median t/s</div><div class="v">16.5</div><div class="sub">max 45.4</div></div>
+    <div class="tile"><div class="k">Errors</div><div class="v" style="color:var(--critical)">1</div><div class="sub">0.7% of requests</div></div>
+    <div class="tile"><div class="k">Cost</div><div class="v">$0.42</div><div class="sub">Σ session cost, 24h</div></div>
+    <div class="tile"><div class="k">Models loaded</div><div class="v">7</div><div class="sub">3 hosts</div></div>
+  </div>
+
+  <div class="grid2">
+    <section class="card">
+      <h2>Speed over time <span class="note">requests only · t/s, dot = request <span class="tag" data-tip="R1/R7 — The chart and feed default to request kinds only (api, moa_*, error, subagent_stop). pool_status/host_stats no longer count against the 20k record window — needs a server-side ?kinds= or ?exclude=pool_status parameter on /api/recent, otherwise heartbeats push real requests out of reach.">R1</span></span></h2>
+      <div class="fakechart">
+        <svg viewBox="0 0 700 240" preserveAspectRatio="none">
+          <g fill="#2a78d6">
+            <circle cx="60" cy="180" r="3"/><circle cx="90" cy="170" r="3"/><circle cx="110" cy="185" r="3"/>
+            <circle cx="150" cy="120" r="3"/><circle cx="170" cy="150" r="3"/><circle cx="200" cy="165" r="3"/>
+            <circle cx="230" cy="172" r="3"/><circle cx="260" cy="158" r="3"/>
+          </g>
+          <g fill="#1baf7a">
+            <circle cx="420" cy="150" r="3"/><circle cx="450" cy="140" r="3"/><circle cx="470" cy="160" r="3"/>
+            <circle cx="500" cy="135" r="3"/><circle cx="530" cy="148" r="3"/><circle cx="560" cy="142" r="3"/>
+            <circle cx="590" cy="155" r="3"/><circle cx="620" cy="138" r="3"/><circle cx="650" cy="146" r="3"/>
+          </g>
+        </svg>
+        <div class="marker" style="left:47%"><span>env → single-model</span></div>
+        <div class="marker" style="left:68%; border-color:var(--s2)"><span style="color:var(--s2)">▼ mark: distill-v2-tuning</span> <span class="tag new" data-tip="N16 — Experiment marks on the speed chart: benchmark_marks already exist (POST /api/benchmark/mark) but only label samples. Drawing them on the main chart ties config/experiment changes to the t/s they produced — the whole point of marking.">N16</span></div>
+      </div>
+      <div class="modelstats">
+        <div class="modelstat"><span class="m">supergemma4-26b</span> · 98 req · med <b>16.5 t/s</b><br><span class="lat">p50 12.4s · p95 31.0s</span> · $0.31 <span class="tag new" data-tip="N2 — p50/p95 latency per model: duration_s is 100% populated; t/s alone hides tail latency, which is what you actually feel. Computed client-side over the current filter window.">N2</span> <span class="tag new" data-tip="N3 — Per-model cost: cost_usd is 75% populated — sum per model over the window, shown next to latency in the legend stats.">N3</span><br><span class="lat">cache hit 62% · 2 truncated <span class="tag new" data-tip="N12 — finish_reason is 99% populated and currently invisible. finish_reason=length means the model hit its output cap — a truncation counter per model (and a marker on the row) catches silent quality loss.">N12</span> · cache = prompt-cache reads ÷ input tokens <span class="tag new" data-tip="N13 — Prompt-cache hit rate + reasoning split: cache_read vs input_tokens measures LM Studio prefix-cache effectiveness (higher = less recompute on long sessions); reasoning vs output tokens shows how much thinking models burn before answering. Both already in the usage payload.">N13</span></span></div>
+        <div class="modelstat"><span class="m">qwen3.6-35b distill</span> · 36 req · med <b>22.4 t/s</b><br><span class="lat">p50 2.2s · p95 9.8s</span> · $0.10<br><span class="lat">cache hit 71% · 0 truncated</span></div>
+        <div class="modelstat"><span class="m">kimi-k2-thinking</span> · 1 req · cloud<br><span class="lat">p50 31.0s</span> · $0.011<br><span class="lat">reasoning 3.1k / output 0.9k tok</span></div>
+      </div>
+      <div style="font-size:var(--fs-xs); color:var(--ink-3); margin-top:6px">blue = supergemma4-26b (98 req) · green = qwen 35b distill (36 req) · dashed = env-mode change <span class="tag" data-tip="R6 — Mode-change markers on the chart explain regime shifts in t/s at a glance.">R6</span></div>
+    </section>
+
+    <section class="card">
+      <h2>Live request feed <span class="note">pool heartbeats hidden · <a href="#">show</a> · <button class="btn" type="button">⤓ CSV</button> <span class="tag new" data-tip="N5 — Export the current filtered view as CSV/JSON. The data is already client-side; one button serializes the visible rows. No server work.">N5</span></span></h2>
+      <table>
+        <thead><tr><th>Time</th><th>Host</th><th>Model</th><th>t/s</th><th></th><th>Dur</th><th>Cost</th></tr></thead>
+        <tbody>
+          <tr><td class="m">12:06:11</td><td><span class="pill api">mbp</span></td><td class="m">supergemma4-26b…</td><td>18.2</td><td><div class="tpsbar" style="width:40px"></div></td><td class="m">9.1s</td><td class="m">$0.003</td></tr>
+          <tr><td class="m">11:58:44</td><td><span class="pill api">mbp</span></td><td class="m">supergemma4-26b…</td><td>16.9</td><td><div class="tpsbar" style="width:37px"></div></td><td class="m">12.4s <span style="color:var(--warn)" title="finish_reason=length — hit output cap">trunc</span></td><td class="m">$0.004</td></tr>
+          <tr><td class="m">11:52:03</td><td><span class="pill api">mini</span></td><td class="m">qwen3.6-35b…</td><td>45.4</td><td><div class="tpsbar" style="width:100px"></div></td><td class="m">2.2s</td><td class="m">$0.001</td></tr>
+          <tr><td class="m">11:41:37</td><td><span class="pill cloud">cloud</span></td><td class="m">kimi-k2-thinking</td><td>—</td><td></td><td class="m">31.0s</td><td class="m">$0.011</td></tr>
+          <tr><td class="m">11:36:20</td><td><span class="pill api">mbp</span></td><td class="m">supergemma4-26b…</td><td>15.8</td><td><div class="tpsbar" style="width:35px"></div></td><td class="m">14.9s</td><td class="m">$0.005</td></tr>
+          <tr><td class="m">11:22:08</td><td><span class="pill err">err <span class="count">×3</span></span></td><td class="m">supergemma4-26b…</td><td>—</td><td></td><td class="m">0.4s</td><td class="m">—</td></tr>
+        </tbody>
+      </table>
+      <div style="font-size:var(--fs-xs); color:var(--ink-3); margin-top:6px">
+        identical consecutive errors collapse into one row <span class="tag new" data-tip="N6 — Error run grouping: consecutive identical errors collapse into one row with an ×N count (expandable). One flaky stretch stops drowning the feed.">N6</span> ·
+        detail tooltip shows ttft/native-tps/spec-decode <i>only when populated</i>
+        <span class="tag" data-tip="R4 — ttft_s / tps_native / spec_accept_rate are 0% populated and will stay that way on LM Studio 0.4.x (empty stats object). Hide them by default; they reappear automatically if a future build fills them in.">R4</span>
+        <span class="tag" data-tip="R5 — The serving device (mini/mbp/WinPC/cloud) becomes a first-class pill in the feed — your single cloud request (kimi-k2-thinking) is currently invisible among local rows.">R5</span>
+        <span class="tag new" data-tip="N1 — Heartbeat-aware retention (backend, no visual): pool_status is 75% of DB volume with near-zero historical value — prune it after 48h, downsample host_stats to 1-per-5min after 48h. Together with the R7 query filter, the 30d window becomes genuinely useful for requests.">N1</span>
+      </div>
+    </section>
+  </div>
+
+  <section class="card">
+    <h2>Conversations <span class="note">source-based labels <span class="tag" data-tip="R3 (revised) — Root cause confirmed: metric session IDs DO exist in state.db, but titles are NULL upstream (only 142/1012 sessions have them, mostly cron). So instead of fixing titles, enrich with source + started_at (both populated): cards read 'tui · Jul 19 11:58 · 14 msgs'. Real identity without pretending there are titles.">R3</span></span></h2>
+    <div class="convo">
+      <div class="head"><b>tui · Jul 19 11:58</b><span class="pill api">mbp</span><span class="m2">…9f2c41 · 14 req · med 16.9 t/s · $0.021</span></div>
+      <div class="rows">supergemma4-26b ×14 · last 12:06 · no subagents detected</div>
+    </div>
+    <div class="convo">
+      <div class="head"><b>cli · Jul 19 09:14</b><span class="pill api">mini</span><span class="m2">…77b10e · 36 req · med 22.4 t/s · $0.013</span></div>
+      <div class="rows">qwen3.6-35b distill ×36 · last 11:52</div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Hardware yield <span class="note">was #/benchmark <span class="tag" data-tip="R2 — Today's benchmark page leads with 'best by usage' tiles that are literally empty (0 entries: yield only populates when requests flow — 39/5000 samples). Redesign: lead with Current (what's loaded, latest measurement + its age), demote Best, and say the quiet part out loud with honest empty states instead of blank tiles.">R2</span></span></h2>
+    <table>
+      <thead><tr><th>Usage</th><th>Host</th><th>Model</th><th>Ctx</th><th>∥</th><th>GB</th><th>Last t/s</th><th>t/s per GB</th><th>t/s per W <span class="tag new" data-tip="N9 — t/s per watt: once WinPC power sampling is fixed, the efficiency column this whole page exists for. Shown here with mock values to preview the layout.">N9</span></th><th>Measured</th></tr></thead>
+      <tbody>
+        <tr><td>aggregator</td><td>mini</td><td class="m">qwen3.6-35b…distilled</td><td>64k</td><td>1</td><td>19.8</td><td><b>45.4</b></td><td>2.29</td><td>—</td><td class="m">2h ago</td></tr>
+        <tr><td>dialectic</td><td>mbp</td><td class="m">supergemma4-26b…v2</td><td>64k</td><td>1</td><td>15.2</td><td><b>16.9</b></td><td>1.11</td><td>—</td><td class="m">18m ago</td></tr>
+        <tr><td>embeddings</td><td>mini</td><td class="m">nomic-embed-v1.5</td><td>2k</td><td>4</td><td>0.3</td><td>—</td><td>—</td><td>—</td><td class="m">never</td></tr>
+        <tr><td>deriver</td><td>WinPC</td><td class="m">qwen3.6-27b…aggressive</td><td>43k</td><td>1</td><td>16.1</td><td><b>—</b></td><td>—</td><td><b>0.31</b> <span style="font-size:var(--fs-xs); color:var(--ink-3)">(mock)</span></td><td class="m">6h ago (stale)</td></tr>
+        <tr style="color:var(--ink-3)"><td><i>loaded</i></td><td>mini</td><td class="m">some-future-model</td><td>?</td><td>?</td><td>?</td><td>—</td><td>—</td><td>—</td><td class="m">— <span class="pill" style="border-style:dashed">set usage →</span> <span class="tag new" data-tip="N11 — Model-agnostic by construction: every section renders from records/pool data, so any newly loaded model appears automatically (feed row, fleet chip, chart color, yield row). The ONE manual step left: usage categorization for the yield page comes from infer_usage heuristics + usage-map.json — an unmapped model lands in 'loaded'. Add a 'set usage' affordance that writes usage-map.json so classifying a new model is a click, not an SSH session.">N11</span></td></tr>
+      </tbody>
+    </table>
+    <div class="empty" style="margin-top:10px">
+      <b>No measured yields yet for 3 of 4 setups.</b> Yield = t/s ÷ (GB × parallel) and populates only when real requests flow.
+      <div class="cta"><button class="btn primary" type="button">Run probe on all models</button> <span class="tag new" data-tip="N10 — Benchmark probe: one short fixed prompt per loaded model, tagged experiment=probe, so t/s + yield fill on demand instead of waiting for organic traffic. Forwarders execute on a server signal (or the mini probes its own LMS); results land in benchmark_samples like any other measurement.">N10</span></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Backend changes with no visual form</h2>
+    <div style="font-size:var(--fs-md); color:var(--ink-2)">
+      <b>N1</b> — heartbeat-aware retention: prune pool_status after 48h, downsample host_stats to 1-per-5min after 48h
+      (~10 lines in retention_loop; pairs with R7's query filter).<br>
+      <b>N9</b> — fix the WinPC power sampling path (nvidia-smi → forwarder → samples), prerequisite for t/s per watt.<br>
+      <b>R3</b> — forwarder enriches with session <i>source</i> + started_at from state.db instead of the always-NULL title.
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>What this mock deliberately does <i>not</i> change</h2>
+    <div style="font-size:var(--fs-md); color:var(--ink-2)">
+      The design language (variables, density, keyboard-navigable charts), the env-mode modal flow, the diagnostics
+      accordions (MoA waterfall, context growth, efficiency, variance — they stay collapsed by default and only appear
+      when their data exists), and the benchmark table for deep dives. The redesign is about <b>showing the data you
+      actually have</b>: requests vs heartbeats, honest sparsity, and fleet health at a glance.
+    </div>
+  </section>
+
+  <div style="font-size:var(--fs-xs); color:var(--ink-3); display:flex; gap:16px; flex-wrap:wrap">
+    <span>dash <span class="m">c01a299</span></span><span>db 41 MB · 155,023 records · oldest Jul 10</span><span>retention: 30d requests / 48h heartbeats</span><span>sse connected</span>
+    <span class="tag new" data-tip="N17 — Ops footer: app commit hash, db size, record count + oldest record, retention policy, SSE state. After this week's recovery, 'what am I actually running' should be one glance away. Values shown here are your real ones.">N17</span>
+  </div>
+
+</div>
+</body>
+</html>

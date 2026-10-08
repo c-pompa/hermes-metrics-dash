@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>speed-v1 lab — tok/s isolation</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="widget-lab.css" />
+</head>
+<body class="lab-speed">
+  <div class="app">
+    <aside class="rail" aria-label="speed-v1 lab">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 18V8M10 18V4M16 18v-6M22 18V10"/></svg>
+        </div>
+        <div>
+          <h1>speed-v1</h1>
+          <p>lab · not on Overview yet</p>
+        </div>
+      </div>
+      <nav class="nav">
+        <a class="is-active" href="#speed" data-jump="speed" data-tone="mint"><span class="dot"></span>Shared axis</a>
+        <a href="#lanes" data-jump="lanes" data-tone="gold"><span class="dot"></span>One row each</a>
+        <a href="#heat" data-jump="heat"><span class="dot"></span>Heatmap</a>
+        <a href="/static/demo-memory.html#/range=6h"><span class="dot"></span>memory-v1</a>
+        <a href="/static/demo-fan.html#/range=6h"><span class="dot"></span>fan-v1</a>
+        <a href="/#/" id="navLive"><span class="dot"></span>Live Overview</a>
+      </nav>
+      <div class="rail-note">
+        Same Overview chart (tok/s · duration · output tokens). IQR bands, one-row lanes, then a median heatmap. Isolation hover, pin-by-chip, dots only when pinned. Live <code>/api/recent</code> on :8899. Overview not patched. <code>docs/LAB-THEN-PATCH.md</code>.
+        <br /><br />
+        <a href="/" style="color:var(--mint)">← Live dashboard</a>
+      </div>
+    </aside>
+
+    <main class="gallery">
+      <header class="hero">
+        <div>
+          <h2>Output tok/s, isolated by model</h2>
+          <p>Overview already has the right axes and metric switch. This lab drops the polyline: three encodings of the same buckets — shared-y IQR bands, one row per model, and a median heatmap (color, not height).</p>
+        </div>
+        <div class="filters" role="group" aria-label="Time range">
+          <button class="filter" data-range="1h">1h</button>
+          <button class="filter is-on" data-range="6h">6h</button>
+          <button class="filter" data-range="12h">12h</button>
+          <button class="filter" data-range="24h">24h</button>
+        </div>
+      </header>
+
+      <div class="lab-flow" aria-label="Lab then patch">
+        <div class="lab-flow-step">
+          <b>1. Live API</b>
+          <span><code>/api/recent</code> · tps / duration / out</span>
+        </div>
+        <span class="lab-flow-arrow" aria-hidden="true">→</span>
+        <div class="lab-flow-step is-here">
+          <b>2. This lab</b>
+          <span>IQR · lanes · heatmap</span>
+        </div>
+        <span class="lab-flow-arrow" aria-hidden="true">→</span>
+        <div class="lab-flow-step">
+          <b>3. Patch Overview</b>
+          <span>Speed chart · Classic frozen</span>
+        </div>
+      </div>
+
+      <section class="stage" id="speed" data-kind="dash">
+        <div>
+          <div class="stage-label">
+            <span>Carry · H2H isolation → Overview speed chart</span>
+            <span><span class="status status-ready">Lab</span> tok/s · duration · output</span>
+          </div>
+          <article class="widget w-speed-lab">
+            <header class="w-head">
+              <div class="w-id">
+                <span class="w-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 12h6l2-6 4 12 2-6h2"/></svg></span>
+                <div>
+                  <h3 id="speedTitle">output tok/s per request</h3>
+                  <p id="speedSub">6h · IQR band · median stroke</p>
+                </div>
+              </div>
+              <div class="w-actions">
+                <span class="chip chip-mint" id="liveChip"><span class="live-dot"></span> demo</span>
+                <div class="seg" role="tablist" aria-label="Chart metric">
+                  <button class="is-on" data-metric="tps" aria-selected="true">tok/s</button>
+                  <button data-metric="duration_s" aria-selected="false">duration</button>
+                  <button data-metric="output_tokens" aria-selected="false">output tokens</button>
+                </div>
+              </div>
+            </header>
+            <p class="why-clean">Connecting successive requests with a line fakes a trajectory. The band is the IQR of each time bucket; the stroke is the median. Pin a model to see the raw requests as dots.</p>
+            <div class="ctx-legend" id="speedLegend" role="tablist" aria-label="Models"></div>
+            <div class="panel grid-bg" style="position:relative;padding:8px;margin-top:10px">
+              <svg id="speedLabChart" class="chart ctx-chart" viewBox="0 0 720 240" aria-label="Per-request metric over time"></svg>
+              <div class="tooltip" id="speedLabTip"></div>
+            </div>
+            <div class="speed-cards" id="speedCards"></div>
+            <div class="kpi-row">
+              <div class="kpi"><b class="tabular" id="speedN">—</b><span>requests</span></div>
+              <div class="kpi"><b class="tabular" id="speedMed">—</b><span id="speedMedLabel">median tok/s</span></div>
+              <div class="kpi"><b class="tabular" id="speedErr">—</b><span>errors</span></div>
+            </div>
+            <div class="foot">
+              <span id="speedFoot">Loading…</span>
+              <div class="w-actions">
+                <a class="btn" href="#lanes" data-jump="lanes">See one-row-each ↓</a>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="stage" id="lanes" data-kind="dash">
+        <div>
+          <div class="stage-label">
+            <span>Alt · same IQR, no overlap</span>
+            <span><span class="status status-ready">Lab</span> small multiples</span>
+          </div>
+          <article class="widget w-speed-lab">
+            <header class="w-head">
+              <div class="w-id">
+                <span class="w-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h16M4 12h16M4 18h10"/></svg></span>
+                <div>
+                  <h3>One row per model</h3>
+                  <p id="laneSub">same buckets · each row has its own y so a 1 t/s model is still readable</p>
+                </div>
+              </div>
+            </header>
+            <p class="why-clean">Shared-y bands compare glm 35 vs kimi 1.2, but kimi hugs the floor. Lanes keep the IQR grammar and give every model a full row. Magnitude stays on the cards above.</p>
+            <div class="panel grid-bg" style="position:relative;padding:8px;margin-top:10px">
+              <svg id="speedLaneChart" class="chart chart-lanes ctx-chart" viewBox="0 0 720 280" aria-label="IQR lanes by model"></svg>
+              <div class="tooltip" id="speedLaneTip"></div>
+            </div>
+            <div class="foot">
+              <span>Click a row to pin it on the shared-axis chart</span>
+              <div class="w-actions">
+                <a class="btn" href="#heat" data-jump="heat">See heatmap ↓</a>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="stage" id="heat" data-kind="dash">
+        <div>
+          <div class="stage-label">
+            <span>Alt · color, not height</span>
+            <span><span class="status status-ready">Lab</span> median heatmap</span>
+          </div>
+          <article class="widget w-speed-lab">
+            <header class="w-head">
+              <div class="w-id">
+                <span class="w-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="4" width="7" height="7"/><rect x="13" y="4" width="7" height="7"/><rect x="4" y="13" width="7" height="7"/><rect x="13" y="13" width="7" height="7"/></svg></span>
+                <div>
+                  <h3>Median heatmap</h3>
+                  <p id="heatSub">same buckets · empty cells are idle · brightness is median vs this window</p>
+                </div>
+              </div>
+              <div class="w-actions">
+                <span class="chip" id="heatVmax">max med —</span>
+              </div>
+            </header>
+            <p class="why-clean">Bands encode value as height; lanes give each model its own y. The grid encodes the same median as color on a shared scale, so glm lights up and kimi stays dim, and idle buckets stay empty instead of looking like a zero line.</p>
+            <div class="panel" style="position:relative;padding:8px;margin-top:10px">
+              <svg id="speedHeatChart" class="chart chart-heat ctx-chart" viewBox="0 0 720 180" aria-label="Median heatmap by model and time"></svg>
+              <div class="tooltip" id="speedHeatTip"></div>
+            </div>
+            <div class="foot">
+              <span>Click a cell to pin that model on the shared-axis chart</span>
+              <div class="w-actions">
+                <a class="btn" href="/#/">Open live Overview</a>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+    </main>
+  </div>
+  <script src="speed-lab.js"></script>
+  <script src="demo-speed.js"></script>
+</body>
+</html>

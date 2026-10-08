@@ -1,0 +1,11 @@
+/* Monochrome icons that inherit text colour: <span class="ico ico-x" aria-hidden="true"></span> */
+.ico { display: inline-block; width: 1em; height: 1em; vertical-align: -0.125em; background: currentColor;
+  -webkit-mask: var(--i) center / contain no-repeat; mask: var(--i) center / contain no-repeat; }
+.ico-x { --i: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M4 4l8 8M12 4l-8 8'/%3E%3C/svg%3E"); }
+.ico-check { --i: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 8.5l3.5 3.5L13 4.5'/%3E%3C/svg%3E"); }
+.ico-warn { --i: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M8 2L15 14H1z'/%3E%3Cpath d='M8 6.5v3.5M8 12v.1'/%3E%3C/svg%3E"); }
+.ico-edit { --i: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.6' stroke-linejoin='round'%3E%3Cpath d='M11 2.5l2.5 2.5L6 12.5H3.5V10z'/%3E%3C/svg%3E"); }
+.ico-convos { --i: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.5'%3E%3Crect x='2' y='2' width='9' height='9' rx='1'/%3E%3Cpath d='M13.5 5v8.5H5'/%3E%3C/svg%3E"); }
+.ico-menu { --i: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round'%3E%3Cpath d='M2.5 4h11M2.5 8h11M2.5 12h11'/%3E%3C/svg%3E"); }
+.ico-pause { --i: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4 3h3v10H4zM9 3h3v10H9z'/%3E%3C/svg%3E"); }
+.ico-play { --i: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4 2.5v11L13 8z'/%3E%3C/svg%3E"); }

@@ -1,0 +1,14 @@
+__pycache__/
+*.py[cod]
+.DS_Store
+.superpowers/
+tmp/
+*.bak*
+metrics.db
+metrics.db-*
+analyze_*.py
+demo-*.html
+# Durable review pages ship with the repo (MR !14 shipped demo-usable.html).
+!static/demo-*.html
+.test-deps/
+.tmp-x-post-tests/.worktrees/

@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Model Harness — qwen3.8-27b-hermes</title>
+<style>
+/* Glass-dark deck */
+:root{--bg:#0b0e14;--card:rgba(255,255,255,.04);--border:rgba(255,255,255,.08);
+--accent:#7ee2a8;--warn:#f0b45a;--hot:#f27575;--txt:#e7ecf3;--muted:#8b96a8;}
+*{box-sizing:border-box;margin:0}
+body{background:var(--bg);color:var(--txt);font:14px/1.5 system-ui,-apple-system,sans-serif;
+padding:20px 24px 48px;max-width:1560px;margin:0 auto;}
+a{color:var(--accent);text-decoration:none} a:hover{text-decoration:underline}
+
+/* Header row */
+.topbar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:16px}
+.topbar h1{font-size:20px;font-weight:650;letter-spacing:.01em}
+.topbar h1 small{color:var(--muted);font-weight:400;font-size:13px;margin-left:8px}
+.live{display:inline-flex;align-items:center;gap:7px;font-size:12px;color:var(--muted);
+padding:5px 12px;border:1px solid var(--border);border-radius:999px;background:var(--card)}
+.live .dot{width:8px;height:8px;border-radius:50%;background:var(--warn)}
+.live.on .dot{background:var(--accent);animation:pulse 2s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(126,226,168,.55)}70%{box-shadow:0 0 0 8px rgba(126,226,168,0)}100%{box-shadow:0 0 0 0 rgba(126,226,168,0)}}
+.chip{display:inline-flex;align-items:center;gap:7px;font-size:12px;color:var(--muted);
+padding:5px 12px;border:1px solid var(--border);border-radius:999px;background:var(--card)}
+.chip b{color:var(--txt);font-weight:600}
+.therm-dot{width:8px;height:8px;border-radius:50%;background:var(--muted)}
+.therm-dot.ok{background:var(--accent)} .therm-dot.warn{background:var(--warn)} .therm-hot{--hot:.08}
+.therm-dot.hot{background:var(--hot)}
+.spacer{flex:1}
+.seg{display:inline-flex;border:1px solid var(--border);border-radius:999px;overflow:hidden;background:var(--card)}
+.seg button{background:none;border:0;color:var(--muted);font-size:12px;padding:6px 14px;cursor:pointer;font-family:inherit}
+.seg button:hover{color:var(--txt)}
+.seg button.on{background:rgba(126,226,168,.14);color:var(--accent)}
+
+/* Cards + generic */
+.card{background:var(--card);border:1px solid var(--border);border-radius:16px;
+backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);padding:16px 18px}
+.sect{display:flex;align-items:baseline;gap:10px;margin-bottom:12px}
+.sect h2{font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.12em;color:var(--muted)}
+.sect .note{font-size:11.5px;color:var(--muted);opacity:.8}
+
+/* KPI band */
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:12px}
+.kpi .lbl{font-size:11.5px;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);margin-bottom:6px}
+.kpi .val{font-size:2.4rem;font-weight:650;font-variant-numeric:tabular-nums;line-height:1.1}
+.kpi .val small{font-size:.42em;color:var(--muted);font-weight:400;margin-left:6px}
+.kpi .delta{margin-top:8px;font-size:12px;color:var(--muted)}
+.kpi .delta b{font-weight:600}
+.delta.good b{color:var(--accent)} .delta.bad b{color:var(--hot)}
+
+/* Charts */
+.charts{display:grid;grid-template-columns:1.5fr 1fr;gap:12px;margin-bottom:12px}
+.chart-box{position:relative;height:300px}
+/* Leaderboard */
+.tablewrap{overflow-x:auto}
+#board{width:100%;border-collapse:collapse;font-size:13px}
+#board th{font-size:10.5px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);
+text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);font-weight:600}
+#board td{padding:9px 10px;border-bottom:1px solid rgba(255,255,255,.04);font-variant-numeric:tabular-nums}
+#board tbody tr{cursor:pointer}
+#board tbody tr:hover td{background:rgba(255,255,255,.03)}
+#board tr.top td{box-shadow:inset 0 0 0 1px var(--accent);background:rgba(126,226,168,.05)}
+#board tr.top td:first-child{border-radius:8px 0 0 8px}
+#board tr.top td:last-child{border-radius:0 8px 8px 0}
+#board code{font-size:12px;color:var(--txt);letter-spacing:.03em}
+#board .lbl-cell{color:var(--accent)}
+.badge{display:inline-block;font-size:10.5px;padding:2px 8px;border-radius:999px;
+border:1px solid var(--border);color:var(--muted)}
+.badge.ok{color:var(--accent);border-color:rgba(126,226,168,.35)}
+.badge.warn{color:var(--warn);border-color:rgba(240,180,90,.35)}
+.badge.hot{color:var(--hot);border-color:rgba(242,117,117,.35)}
+/* Heatmap */
+#heat{width:100%;height:240px;display:block;border-radius:8px}
+#tip{position:fixed;pointer-events:none;z-index:30;background:#141826;border:1px solid var(--border);
+border-radius:8px;padding:7px 10px;font-size:12px;color:var(--txt);box-shadow:0 8px 24px rgba(0,0,0,.45);
+opacity:0;transition:opacity .1s;transform:translate(-50%,calc(-100% - 12px));white-space:pre-line;max-width:320px}
+#tip b{color:var(--accent)}
+.empty{padding:34px;text-align:center;color:var(--muted);font-size:13px}
+.empty code{color:var(--txt)}
+canvas.empty-msg::after{content:"Chart.js failed to load from CDN — charts disabled";
+color:var(--muted);font-size:13px;display:block;text-align:center;padding-top:120px}
+
+/* Bottom row */
+.bottom{display:grid;grid-template-columns:1.5fr 1fr;gap:12px}
+footer{margin-top:20px;font-size:12px;color:var(--muted)}
+footer code{color:var(--txt)}
+
+@media(max-width:980px){.kpis{grid-template-columns:repeat(2,1fr)}
+.charts,.bottom{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1>Model Harness <small>qwen3.8-27b-hermes · LM Studio on mbp</small></h1>
+  <span class="live" id="live"><span class="dot"></span><b id="lastAge">no samples</b></span>
+  <span class="chip" title="thermal state of the MBP in the newest sample"><b id="therm">—</b><span class="therm-dot" id="thermDot"></span></span>
+  <span class="chip" title="config fingerprint of the newest sample"><b id="fp">—</b><span id="fplabel"></span></span>
+  <span class="spacer"></span>
+  <div class="seg" id="rangeSeg" role="group" aria-label="Time range">
+    <button data-h="1">1h</button>
+    <button data-h="6">6h</button>
+    <button data-h="24" class="on">24h</button>
+    <button data-h="168">7d</button>
+  </div>
+</div>
+
+<section class="kpis">
+  <div class="card kpi"><div class="lbl">Median tok/s</div><div class="val" id="kpi-tps">—<small>tok/s</small></div><div class="delta" id="kpi-tps-d"></div></div>
+  <div class="card kpi"><div class="lbl">p95 TTFT</div><div class="val" id="kpi-ttft">—<small>s</small></div><div class="delta" id="kpi-ttft-d"></div></div>
+  <div class="card kpi"><div class="lbl">Samples / hour</div><div class="val" id="kpi-rate">—<small>/h</small></div><div class="delta" id="kpi-rate-d"></div></div>
+  <div class="card kpi"><div class="lbl">Swap</div><div class="val" id="kpi-swap">—<small>MB</small></div><div class="delta" id="kpi-swap-d"></div></div>
+</section>
+
+<section class="charts">
+  <div class="card"><div class="sect"><h2>Throughput</h2><span class="note" id="tps-sub">tok/s per sample</span></div>
+    <div class="chart-box"><canvas id="chart-tps"></canvas></div></div>
+  <div class="card"><div class="sect"><h2>p50 TTFT by prompt class</h2><span class="note">first-token latency per suite class</span></div>
+    <div class="chart-box"><canvas id="chart-ttft"></canvas></div></div>
+</section>
+
+<section class="bottom" style="margin-bottom:12px">
+  <div class="card"><div class="sect"><h2>Config leaderboard</h2><span class="note">click a row to label it · <code>/api/harness/mark</code></span></div>
+    <div class="tablewrap" id="board-wrap">
+      <table id="board"><thead><tr>
+        <th>#</th><th>fp</th><th>label</th><th title="median tok/s over all classes">med tps</th>
+        <th>p50 ttft</th><th>n</th><th>thermal</th><th>host</th><th>last</th>
+      </tr></thead><tbody id="board-body"></tbody></table>
+    </div>
+  </div>
+  <div class="card"><div class="sect"><h2>Yield heatmap</h2><span class="note">fp × class → median tps <code>/api/harness/best</code></span></div>
+    <canvas id="heat"></canvas><div class="note" id="best-sub" style="margin-top:10px"></div></div>
+</section>
+
+<footer>Samples arrive from the MBP collector via <code>/ingest</code> and stream over SSE
+<code>/events</code>. Data: <code>/api/harness/samples?hours=24</code> ·
+<a href="/">← back to the dashboard</a></footer>
+
+<div id="tip" role="tooltip"></div>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<script src="/static/harness.js"></script>
+</body>
+</html>

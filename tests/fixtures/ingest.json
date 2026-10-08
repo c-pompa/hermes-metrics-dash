@@ -1,0 +1,26 @@
+{
+  "host": "smoke-host",
+  "records": [
+    {
+      "ts": 1700000000.0,
+      "event": "post_api_request",
+      "session_id": "smoke-session",
+      "model": "smoke-model",
+      "provider": "local",
+      "api_duration": 2.0,
+      "usage": {
+        "input_tokens": 5,
+        "output_tokens": 20
+      }
+    },
+    {
+      "ts": 1700000001.0,
+      "event": "api_request_error",
+      "session_id": "smoke-session",
+      "model": "smoke-model",
+      "provider": "local",
+      "error_type": "FixtureError",
+      "error_message": "expected smoke-test record"
+    }
+  ]
+}

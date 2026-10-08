@@ -1,0 +1,22 @@
+# Unit tests on Python 3.9, the system python the forwarder runs under.
+# Docker executor, public image pinned by version and digest, no runner tags.
+
+workflow:
+  rules:
+    # MR pipelines, plus branch pipelines only when no MR is open (no duplicates).
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
+      when: never
+    - if: $CI_COMMIT_BRANCH
+
+default:
+  interruptible: true
+
+test:
+  image:
+    name: python:3.9.23-bookworm@sha256:2ec52d7ef47921e3fb7955e389a63ddc71d99f68e28b0d94932107d9233e778b
+  script:
+    # node runs the dashboard JS tests (tests/test_dashboard_js.py), which skip without it.
+    - apt-get update -qq && apt-get install -y -qq --no-install-recommends nodejs >/dev/null
+    - pip install --quiet --disable-pip-version-check pyyaml==6.0.2 fastapi==0.128.8 httpx==0.28.1
+    - python -m unittest discover -s tests -p "test_*.py"

@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hermes LLM Metrics</title>
+<style>
+:root {
+  --surface-1: #ffffff; --page: #f7f7f4;
+  --ink-1: #1c1c1a; --ink-2: #52514e; --ink-3: #82806f;
+  --grid: #efeee8; --axis: #b5b3a6; --ring: #e7e6e0;
+  --good: #006300; --critical: #e05c5c; --warn: #8a6300;
+  --s1: #4f7cf0; --s2: #12b5a5; --s3: #f0a04f; --s4: #008300;
+  --s5: #7a6d00; --s6: #e34948; --s7: #e87ba4; --s8: #eb6834;
+  --other: #898781;
+  --fs-xs: 10.5px; --fs-sm: 11.5px; --fs-md: 12.5px; --fs-lg: 14px;
+  --radius: 12px;
+  --card-shadow: 0 1px 2px rgba(0,0,0,.03);
+  /* Stacking order — every tooltip layer sits above the sticky controls bar. */
+  --z-table-head: 2;
+  --z-chart-tip: 5;
+  --z-controls: 20;
+  --z-context-tip: 30;
+  --z-bm-tip: 40;
+}
+/* Theme override: explicit dark always wins; "auto" (or no attribute) follows the OS below. */
+html[data-theme="dark"] {
+  --surface-1: #1d1d1a; --page: #141412;
+  --ink-1: #f0efe9; --ink-2: #c3c2b7; --ink-3: #9c9a8c;
+  --grid: #262622; --axis: #5c5a50; --ring: #2c2c27;
+  --good: #0ca30c; --critical: #ef7070; --warn: #e0aa3e;
+  --s1: #7b9bf5; --s2: #2dd4c3; --s3: #f5b567; --s4: #008300;
+  --s5: #d6c53a; --s6: #e66767; --s7: #d55181; --s8: #d95926;
+}
+@media (prefers-color-scheme: dark) {
+  html[data-theme="auto"] {
+    --surface-1: #1d1d1a; --page: #141412;
+    --ink-1: #f0efe9; --ink-2: #c3c2b7; --ink-3: #9c9a8c;
+    --grid: #262622; --axis: #5c5a50; --ring: #2c2c27;
+    --good: #0ca30c; --critical: #ef7070; --warn: #e0aa3e;
+    --s1: #7b9bf5; --s2: #2dd4c3; --s3: #f5b567; --s4: #008300;
+    --s5: #d6c53a; --s6: #e66767; --s7: #d55181; --s8: #d95926;
+  }
+}
+/* Hermes theme: tokens + fonts lifted from compression.html ("Hermes Agent" theme).
+   Redefines the same var names only — SVG charts (var()) and canvas sparklines
+   (cssColorTriplet) pick it up with no JS changes. Explicit theme; no auto media query. */
+@font-face { font-family: "Rules Expanded"; src: url("/static/hermes-RulesExpanded-Regular.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "Rules Expanded"; src: url("/static/hermes-RulesExpanded-Bold.woff2") format("woff2"); font-weight: 700; font-display: swap; }
+@font-face { font-family: "Collapse"; src: url("/static/hermes-Collapse-Regular.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "Collapse"; src: url("/static/hermes-Collapse-Bold.woff2") format("woff2"); font-weight: 700; font-display: swap; }
+@font-face { font-family: "Mondwest"; src: url("/static/hermes-Mondwest-Regular.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+html[data-theme="hermes"] {
+  --surface-1: #06282a; --page: #041c1c;
+  --ink-1: #ffffff; --ink-2: rgba(255,230,203,.9); --ink-3: rgba(255,230,203,.55);
+  --grid: rgba(255,230,203,.12); --axis: rgba(255,230,203,.45); --ring: rgba(255,230,203,.16);
+  --good: #34d399; --critical: #ff7a6b; --warn: #ffac02;
+  --s1: #34d399; --s2: #ffe6cb; --s3: #ffac02; --s4: #2ea88a;
+  --s5: #7dd3fc; --s6: #c4b5fd; --s7: #f9a8d4; --s8: #fdba74;
+  --other: rgba(255,230,203,.5);
+  --radius: 0;
+  --card-shadow: none;
+}
+html[data-theme="hermes"] body {
+  font-family: "Collapse", system-ui, sans-serif;
+  background: linear-gradient(rgba(4,28,28,.92), rgba(4,28,28,.96)),
+    url("/static/hermes-bg.jpg") center / cover fixed no-repeat, var(--page);
+}
+html[data-theme="hermes"] h1,
+html[data-theme="hermes"] .card h2,
+html[data-theme="hermes"] .section-title,
+html[data-theme="hermes"] .diagnostic > summary {
+  font-family: "Rules Expanded", system-ui, sans-serif;
+  text-transform: uppercase; letter-spacing: .14em;
+}
+html[data-theme="hermes"] th,
+html[data-theme="hermes"] code,
+html[data-theme="hermes"] kbd,
+html[data-theme="hermes"] .feed-meta,
+html[data-theme="hermes"] .chip {
+  font-family: "Courier Prime", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+* { box-sizing: border-box; margin: 0; }
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+body {
+  background: var(--page); color: var(--ink-1);
+  font: var(--fs-lg)/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+  padding: 0 16px 24px; max-width: 1500px; margin: 0 auto;
+}
+header { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+header h1 { font-size: 17px; font-weight: 650; letter-spacing: -.01em; white-space: nowrap; }
+#conn { font-size: var(--fs-sm); color: var(--ink-3); display: inline-flex; align-items: center; gap: 5px; }
+#conn .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--critical); display: inline-block; }
+#conn.live .dot { background: var(--good); }
+.spacer { flex: 1; }
+.controls {
+  position: sticky; top: 0; z-index: var(--z-controls); padding: 10px 0;
+  background: color-mix(in srgb, var(--page) 94%, transparent);
+  backdrop-filter: blur(10px); border-bottom: 1px solid var(--grid); margin-bottom: 14px;
+}
+.control-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.control-row + .control-row { margin-top: 8px; }
+.control { display: inline-flex; align-items: center; gap: 5px; color: var(--ink-3); font-size: var(--fs-sm); }
+.control > span { white-space: nowrap; }
+.control input[type="search"] { width: min(280px, 34vw); }
+.toggle { cursor: pointer; color: var(--ink-2); }
+.filter-actions { display: flex; align-items: center; gap: 6px; min-height: 24px; flex-wrap: wrap; }
+.seg { display: inline-flex; border: 1px solid var(--ring); border-radius: 8px; overflow: hidden; }
+.seg button {
+  border: 0; background: transparent; color: var(--ink-2); padding: 5px 11px;
+  font: inherit; font-size: var(--fs-md); cursor: pointer;
+}
+.seg button.on { background: var(--surface-1); color: var(--ink-1); font-weight: 600; }
+button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible,
+[role="button"]:focus-visible {
+  outline: 3px solid var(--s1); outline-offset: 2px;
+}
+#hostsel, #kindfilter, #searchfilter, #custrange input, #custapply, #retryload, #clearfilters {
+  background: var(--surface-1); color: var(--ink-1); border: 1px solid var(--ring);
+  border-radius: 8px; padding: 4px 8px; font: inherit; font-size: var(--fs-md);
+}
+#custapply, #retryload, #clearfilters { cursor: pointer; }
+#clearfilters:disabled { opacity: .45; cursor: default; }
+#custrange { display: none; flex-wrap: wrap; align-items: center; gap: 6px; font-size: var(--fs-sm); color: var(--ink-2); }
+#custrange.show { display: inline-flex; }
+#custerror { color: var(--critical); flex-basis: 100%; font-size: var(--fs-sm); }
+#custerror:empty { display: none; }
+.envmode-badge {
+  font-size: var(--fs-sm); color: var(--ink-2); padding: 4px 9px;
+  border: 1px solid var(--ring); border-radius: 8px; background: var(--surface-1);
+}
+.envmode-badge strong { color: var(--ink-1); font-weight: 600; }
+#envmodesel button.on {
+  background: color-mix(in srgb, var(--s1) 12%, var(--surface-1));
+  color: var(--ink-1); font-weight: 600;
+}
+#envmode-dialog, #bmmark-dialog {
+  border: 1px solid var(--ring); border-radius: 12px; padding: 0;
+  background: var(--surface-1); color: var(--ink-1); max-width: min(560px, 94vw);
+  box-shadow: 0 12px 40px rgba(0,0,0,.22);
+}
+#envmode-dialog::backdrop, #bmmark-dialog::backdrop { background: rgba(0,0,0,.35); }
+#envmode-dialog .dlg-body, #bmmark-dialog .dlg-body { padding: 16px 18px 18px; }
+#envmode-dialog h2, #bmmark-dialog h2 { font-size: 15px; font-weight: 600; margin: 0 0 6px; }
+#envmode-dialog .dlg-lead, #bmmark-dialog .dlg-lead { font-size: var(--fs-md); color: var(--ink-2); margin-bottom: 12px; }
+#envmode-diff {
+  list-style: none; padding: 0; margin: 0 0 14px; max-height: 220px; overflow: auto;
+  border: 1px solid var(--ring); border-radius: 8px; font-size: var(--fs-sm);
+}
+#envmode-diff li {
+  display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px; padding: 7px 10px; border-bottom: 1px solid var(--grid);
+  font-variant-numeric: tabular-nums;
+}
+#envmode-diff li:last-child { border-bottom: 0; }
+#envmode-diff .path { color: var(--ink-1); font-weight: 600; word-break: break-all; }
+#envmode-diff .from { color: var(--ink-3); word-break: break-all; }
+#envmode-diff .to { color: var(--good); word-break: break-all; }
+#envmode-diff .empty { padding: 12px; color: var(--ink-3); }
+#envmode-confirm, #bmmark-label {
+  width: 100%; background: var(--page); color: var(--ink-1); border: 1px solid var(--ring);
+  border-radius: 8px; padding: 7px 10px; font: inherit; font-size: var(--fs-md); margin-top: 6px;
+}
+#envmode-dialog .dlg-actions, #bmmark-dialog .dlg-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 14px; }
+#envmode-dialog .dlg-actions button, #bmmark-dialog .dlg-actions button {
+  border: 1px solid var(--ring); background: var(--page); color: var(--ink-1);
+  border-radius: 8px; padding: 6px 12px; font: inherit; font-size: var(--fs-md); cursor: pointer;
+}
+#envmode-dialog .dlg-actions #envmode-apply, #bmmark-dialog .dlg-actions #bmmark-confirm {
+  background: var(--ink-1); color: var(--surface-1); border-color: var(--ink-1); font-weight: 600;
+}
+#envmode-dialog .dlg-actions #envmode-apply:disabled, #bmmark-dialog .dlg-actions #bmmark-confirm:disabled { opacity: .4; cursor: default; }
+#envmode-error, #bmmark-error { color: var(--critical); font-size: var(--fs-sm); margin-top: 10px; min-height: 1.2em; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin-bottom: 14px; }
+.tiles.secondary { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
+.tile { background: var(--surface-1); border: 1px solid var(--ring); border-radius: var(--radius); padding: 12px 14px 8px; box-shadow: var(--card-shadow); }
+.tile .k { font-size: var(--fs-sm); color: var(--ink-3); }
+.tile .v { font-size: 24px; font-weight: 650; letter-spacing: -.02em; margin-top: 2px; }
+.tile .sub { font-size: var(--fs-sm); color: var(--ink-2); margin-top: 2px; }
+.tile .v.status { font-size: 17px; margin-top: 7px; }
+.kspark { width: 100%; height: 34px; display: block; margin-top: 6px; cursor: crosshair; }
+.card { min-width: 0; max-width: 100%; background: var(--surface-1); border: 1px solid var(--ring); border-radius: var(--radius); padding: 14px; margin-bottom: 14px; box-shadow: var(--card-shadow); }
+.card h2 { font-size: var(--fs-md); font-weight: 600; color: var(--ink-2); margin-bottom: 8px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.cols { display: grid; grid-template-columns: minmax(380px, 5fr) minmax(420px, 7fr); gap: 14px; align-items: start; }
+.cols > * { min-width: 0; max-width: 100%; }
+@media (max-width: 1050px) { .cols { grid-template-columns: minmax(0, 1fr); } }
+.section-title { margin: 18px 0 8px; font-size: var(--fs-xs); color: var(--ink-3); letter-spacing: .08em; text-transform: uppercase; }
+.diagnostic {
+  background: var(--surface-1); border: 1px solid var(--ring); border-radius: var(--radius);
+  margin-bottom: 10px; overflow: clip; box-shadow: var(--card-shadow);
+}
+.diagnostic > summary { cursor: pointer; padding: 11px 14px; font-weight: 600; color: var(--ink-2); display: flex; align-items: baseline; }
+.diagnostic > summary .diagsum { margin-left: auto; font-weight: 400; font-size: var(--fs-xs); color: var(--ink-3); border: 1px solid var(--ring); border-radius: 999px; padding: 1px 8px; }
+.diagnostic > summary .diagsum.has-data { color: var(--s2); border-color: color-mix(in srgb, var(--s2) 40%, var(--ring)); }
+.diagnostic > .diagnostic-body { padding: 2px 14px 14px; }
+.diagnostic .card { border: 0; padding: 0; margin: 0; border-radius: 0; }
+#legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: var(--fs-sm); color: var(--ink-2); font-weight: 400; }
+#legend .chip { display: inline-flex; align-items: center; gap: 5px; }
+#legend .sw { width: 9px; height: 9px; border-radius: 3px; }
+#vollegend { display: flex; gap: 12px; flex-wrap: wrap; font-size: var(--fs-sm); color: var(--ink-2); font-weight: 400; }
+#vollegend .mchip { display: inline-flex; align-items: center; gap: 5px; border: 0; background: transparent; color: inherit; font: inherit; }
+#vollegend .sw { width: 9px; height: 9px; border-radius: 3px; display: inline-block; }
+#hostlegend { font-weight: 400; }
+#hostlegend .hchip { display: inline-flex; align-items: center; gap: 5px; font-size: var(--fs-sm); color: var(--ink-2); margin-left: 10px; }
+#hostlegend .hsw { width: 9px; height: 9px; border-radius: 3px; }
+#poolnow { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; font-size: var(--fs-sm); color: var(--ink-3); }
+#poolnow .pool-now { font-weight: 600; color: var(--ink-2); }
+#poolnow .pool-dev { color: var(--ink-3); }
+#chartwrap, #volwrap, #cpuwrap, #memwrap, #ctxwrap, #effwrap, #kvwrap { position: relative; }
+#chart { width: 100%; height: 260px; display: block; }
+.tipbox {
+  position: absolute; pointer-events: none; display: none; z-index: var(--z-chart-tip);
+  background: var(--surface-1); border: 1px solid var(--ring); border-radius: 8px;
+  box-shadow: 0 4px 14px rgba(0,0,0,.18); padding: 8px 10px; font-size: var(--fs-sm); min-width: 170px;
+}
+.tipbox .t-model { font-weight: 600; margin-bottom: 3px; }
+.tipbox .row { display: flex; justify-content: space-between; gap: 14px; color: var(--ink-2); }
+.tipbox .row b { color: var(--ink-1); font-weight: 600; font-variant-numeric: tabular-nums; }
+.tipbox .tip-note { margin-top: 4px; color: var(--ink-3); font-size: var(--fs-xs); line-height: 1.35; }
+.context-tip { position: fixed; pointer-events: none; z-index: var(--z-context-tip); max-width: 300px; }
+.help-btn {
+  border: 0; background: transparent; color: var(--ink-3); cursor: help;
+  font-size: var(--fs-sm); padding: 0 4px; line-height: 1; font-weight: 500;
+}
+.help-btn:focus-visible { outline: 3px solid var(--s1); outline-offset: 2px; }
+.tip-target { cursor: default; }
+.chart-mark:focus { outline: none; stroke: var(--ink-1); stroke-width: 4px; }
+#chartwrap, #volwrap, #ctxwrap, #effwrap, #kvwrap { touch-action: pan-y; }
+table { width: 100%; border-collapse: collapse; font-size: var(--fs-md); }
+th { text-align: left; color: var(--ink-3); font-weight: 500; font-size: var(--fs-sm); padding: 4px 8px; border-bottom: 1px solid var(--grid); white-space: nowrap; }
+td { padding: 4px 8px; border-bottom: 1px solid var(--grid); white-space: nowrap; font-variant-numeric: tabular-nums; }
+thead th { position: sticky; top: 0; z-index: var(--z-table-head); background: var(--surface-1); }
+th button {
+  border: 0; padding: 0; background: transparent; color: inherit; font: inherit;
+  cursor: pointer; white-space: nowrap;
+}
+th button.active { color: var(--ink-1); font-weight: 600; }
+td.model { max-width: 230px; overflow: hidden; text-overflow: ellipsis; }
+.num { text-align: right; }
+th.num { text-align: right; }
+.chip {
+  display: inline-block; padding: 1px 7px; border-radius: 999px; font-size: var(--fs-xs);
+  border: 1px solid var(--ring); color: var(--ink-2); background: transparent;
+}
+button.chip { font-family: inherit; line-height: inherit; }
+.chip.err { color: var(--critical); border-color: var(--critical); }
+.chip.host { color: var(--ink-3); }
+.fchip { cursor: pointer; color: var(--s1); border-color: var(--s1); font-size: var(--fs-sm); margin-left: 6px; }
+.mchip { cursor: pointer; }
+.mchip.active { font-weight: 600; text-decoration: underline; color: var(--ink-1); }
+.aggregate-chip { display: inline-flex; align-items: center; gap: 5px; color: var(--ink-3); font-style: italic; cursor: default; }
+.focusbtn { cursor: pointer; }
+.focusbtn.active, .convo.focused { border-color: var(--s1); }
+.convo.focused { box-shadow: 0 0 0 1px var(--s1) inset; }
+.vname[data-model] { cursor: pointer; }
+.msw { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 6px; vertical-align: baseline; }
+.convo { border: 1px solid var(--ring); border-radius: 9px; padding: 9px 11px; margin-bottom: 9px; }
+.convo-controls { display: flex; gap: 8px; align-items: baseline; }
+.convo .head {
+  display: flex; flex: 1; gap: 8px; align-items: baseline; flex-wrap: wrap; cursor: pointer;
+  border: 0; padding: 0; background: transparent; color: inherit; text-align: left; font: inherit;
+}
+.convo .title { font-weight: 600; font-size: var(--fs-md); }
+.convo .meta { color: var(--ink-3); font-size: var(--fs-sm); }
+.convo table { margin-top: 7px; }
+.convo .sub-sess td:first-child { padding-left: 22px; }
+.empty { color: var(--ink-3); padding: 18px 6px; text-align: center; font-size: var(--fs-md); }
+.wturn { border: 1px solid var(--ring); border-radius: 9px; padding: 8px 11px; margin-bottom: 9px; }
+.whead { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; font-size: var(--fs-sm); color: var(--ink-3); margin-bottom: 4px; }
+.whead b { color: var(--ink-1); font-weight: 600; }
+.wrow { display: grid; grid-template-columns: minmax(120px, 240px) 1fr minmax(120px, auto); gap: 10px; align-items: center; padding: 2px 0; }
+.wlab { font-size: var(--fs-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wtrack { position: relative; height: 10px; }
+.wbar { position: absolute; top: 1px; height: 8px; border-radius: 4px; min-width: 2px; }
+.wval { font-size: var(--fs-xs); color: var(--ink-2); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+.cbar { display: flex; height: 6px; border-radius: 3px; overflow: hidden; gap: 2px; margin-top: 7px; }
+.cbar span { min-width: 2px; }
+.vrow { display: grid; grid-template-columns: minmax(150px, 300px) 1fr minmax(210px, auto); gap: 12px; align-items: center; padding: 5px 0; border-bottom: 1px solid var(--grid); }
+.vrow:last-child { border-bottom: 0; }
+.vname { font-size: var(--fs-md); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+button.vname {
+  width: 100%; border: 0; padding: 0; background: transparent; color: inherit;
+  font-family: inherit; text-align: left;
+}
+.vtrack { position: relative; height: 16px; }
+.vband { position: absolute; top: 5px; height: 6px; border-radius: 3px; background: var(--axis); min-width: 2px; }
+.vtick { position: absolute; top: 2px; width: 2px; height: 12px; border-radius: 1px; background: var(--ink-3); }
+.vdot { position: absolute; top: 3px; width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--surface-1); transform: translateX(-5px); }
+.vstats { font-size: var(--fs-sm); color: var(--ink-2); font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; }
+.vstats b { color: var(--ink-1); font-weight: 600; }
+.scroll-x { width: 100%; min-width: 0; max-width: 100%; overflow-x: auto; overscroll-behavior-inline: contain; -webkit-overflow-scrolling: touch; }
+.scroll-x table { min-width: 720px; }
+#feedwrap { max-height: 560px; overflow-y: auto; }
+#convos { max-height: 560px; overflow-y: auto; }
+.feed-meta { color: var(--ink-3); font-size: var(--fs-sm); font-weight: 400; }
+.error-list { max-height: 300px; overflow: auto; }
+.error-item { padding: 8px 0; border-bottom: 1px solid var(--grid); }
+.error-item:last-child { border-bottom: 0; }
+.error-item .message { color: var(--critical); margin-top: 2px; overflow-wrap: anywhere; }
+
+/* ---------- redesign: shared bits ---------- */
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: var(--fs-xs); }
+kbd {
+  font: 10px ui-monospace, SFMono-Regular, Menlo, monospace;
+  background: var(--surface-1); border: 1px solid var(--axis); border-bottom-width: 2px;
+  border-radius: 4px; padding: 0 4px;
+}
+.kbd-hint { font-size: var(--fs-xs); color: var(--ink-3); white-space: nowrap; }
+/* R6: env-mode badge in the page header */
+.envbadge {
+  font-size: var(--fs-sm); color: var(--ink-2); border: 1px solid var(--ring);
+  background: var(--surface-1); border-radius: 999px; padding: 3px 10px; white-space: nowrap;
+}
+.envbadge b { color: var(--s4); font-weight: 600; }
+
+/* N15: health banner (one dismissible banner for stale hosts) */
+.healthbanner {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  background: color-mix(in srgb, var(--warn) 10%, var(--surface-1));
+  border: 1px solid color-mix(in srgb, var(--warn) 40%, var(--ring));
+  border-radius: 10px; padding: 8px 12px; font-size: var(--fs-md); color: var(--ink-2);
+  margin-bottom: 10px;
+}
+.healthbanner b { color: var(--ink-1); }
+.healthbanner .dismiss {
+  margin-left: auto; border: 0; background: none; color: var(--ink-3);
+  cursor: pointer; font-size: var(--fs-md); padding: 2px 6px;
+}
+
+/* R1: fleet strip — per-host cards above the KPI row */
+.fleet { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 10px; margin-bottom: 12px; }
+.hostcard { background: var(--surface-1); border: 1px solid var(--ring); border-radius: var(--radius); padding: 10px 14px; box-shadow: var(--card-shadow); }
+.hostcard .hh { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.hostcard .hh b { font-size: var(--fs-lg); }
+.hostcard .hh .age { margin-left: auto; font-size: var(--fs-xs); color: var(--ink-3); }
+.hostcard .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--good); flex: none; }
+.hostcard .dot.stale { background: var(--warn); }
+.meters { display: flex; gap: 14px; flex-wrap: wrap; font-size: var(--fs-sm); color: var(--ink-2); margin-bottom: 2px; align-items: baseline; }
+.meter b { color: var(--ink-1); font-weight: 600; }
+.bar { height: 4px; border-radius: 2px; background: var(--grid); overflow: hidden; margin: 2px 0 8px; }
+.bar i { display: block; height: 100%; background: var(--s1); }
+.models { display: flex; flex-wrap: wrap; gap: 4px; }
+.models .chip .dev { color: var(--s1); }
+
+/* model stats strip under the speed chart (N2/N3/N12/N13) */
+.modelstats { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 8px; margin-top: 8px; }
+.modelstat { border: 1px solid var(--ring); border-radius: 8px; padding: 6px 10px; font-size: var(--fs-sm); color: var(--ink-2); }
+.modelstat .m { color: var(--ink-1); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: var(--fs-xs); }
+.modelstat .lat { color: var(--ink-3); }
+
+/* feed additions: R5 device pill, N12 trunc marker, N6 error groups, N5/N7 controls */
+.chip.cloud { color: var(--s5); border-style: dashed; }
+.trunc { color: var(--warn); font-size: var(--fs-xs); font-weight: 600; }
+.count { font-size: var(--fs-xs); color: var(--critical); font-weight: 700; }
+button.errgroup { font-family: inherit; line-height: inherit; cursor: pointer; }
+#feed tr:focus { outline: 2px solid var(--s1); outline-offset: -2px; }
+.feedbtn {
+  border: 1px solid var(--ring); background: var(--surface-1); color: var(--ink-1);
+  border-radius: 8px; padding: 2px 8px; font-size: var(--fs-sm); cursor: pointer; font-weight: 400;
+}
+.feedbtn[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--s1) 12%, var(--surface-1)); font-weight: 600;
+}
+
+/* N17: ops footer */
+#opsfooter { display: flex; gap: 16px; flex-wrap: wrap; font-size: var(--fs-xs); color: var(--ink-3); padding: 4px 2px 0; }
+
+/* clean-design demo ports: chart crosshair, brush zoom, series toggles,
+   volume bin hover, latency whiskers, fleet dual sparkline */
+#chartwrap { cursor: crosshair; }
+#brushhint { font-size: var(--fs-xs); color: var(--axis); margin-top: 4px; }
+.crosshair line { stroke: var(--axis); stroke-width: 1; stroke-dasharray: 3 3; }
+.crosshair text { fill: var(--ink-1); font-size: 10.5px; font-weight: 600; paint-order: stroke; stroke: var(--surface-1); stroke-width: 3; }
+.crosshair text.chtime { fill: var(--ink-3); font-weight: 400; }
+.brushsel {
+  fill: color-mix(in srgb, var(--s1) 12%, transparent);
+  stroke: color-mix(in srgb, var(--s1) 45%, transparent); stroke-width: 1;
+}
+#legend .mchip.off, #vollegend .mchip.off { opacity: .4; }
+#volchart .volbin { transition: opacity .12s; }
+#volchart.has-hover .volbin { opacity: .3; }
+#volchart.has-hover .volbin.hover { opacity: 1; }
+.latplot { margin-top: 4px; }
+.latplot svg { display: block; width: 100%; height: 12px; }
+.fleetspark { width: 100%; height: 30px; display: block; margin: 4px 0 6px; cursor: crosshair; }
+
+/* ops-sections pass (P3–P6): host resources rows, convo + MoA sparklines,
+   waterfall summary chips + hover isolation, variance box layer */
+.hostres-row { margin-bottom: 10px; }
+.hostres-row:last-child { margin-bottom: 0; }
+.hostres-head { display: flex; align-items: baseline; gap: 10px; font-size: var(--fs-sm); color: var(--ink-2); margin-bottom: 2px; }
+.hostres-latest { font-size: var(--fs-xs); color: var(--ink-3); }
+.hostres-canvas { width: 100%; height: 54px; display: block; cursor: crosshair; border-radius: 8px; }
+.hostres-canvas:focus-visible { outline: 3px solid var(--s1); outline-offset: 2px; }
+.convospark { width: 100%; height: 30px; display: block; cursor: crosshair; margin-top: 4px; }
+.moaspark { width: 100%; height: 44px; display: block; cursor: crosshair; margin-bottom: 6px; }
+.wchip {
+  font-size: var(--fs-xs); color: var(--ink-3); border: 1px solid var(--ring);
+  border-radius: 999px; padding: 1px 8px; font-weight: 400;
+}
+.wchip b { color: var(--ink-1); font-weight: 600; }
+.wturn .wrow { transition: opacity .12s, background .12s; border-radius: 8px; }
+.wturn.has-hover .wrow { opacity: .25; }
+.wturn.has-hover .wrow.hover { opacity: 1; }
+.vbox { position: absolute; top: 3px; height: 10px; border-radius: 3px; border: 1px solid; }
+.vrow.hover { background: var(--grid); }
+.vrow { cursor: pointer; }
+
+@media (max-width: 900px) {
+  body { padding-inline: 12px; }
+  .controls { max-height: min(48vh, 360px); overflow-y: auto; }
+  .control-row, header { align-items: stretch; }
+  .tiles, .tiles.secondary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .diagnostic > .diagnostic-body { padding-inline: 10px; }
+  .cols { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+  body { padding-inline: 8px; }
+  .controls { padding-block: 8px; }
+  header .spacer, .control-row > .spacer { display: none; }
+  header h1 { flex-basis: 100%; }
+  .kbd-hint { display: none; }
+  .control { flex: 1 1 145px; }
+  .control input[type="search"], #hostsel, #kindfilter { width: 100%; min-width: 0; }
+  #hostsel { min-height: 44px; }
+  #kindfilter { min-height: 44px; }
+  #searchfilter { min-height: 44px; }
+  .toggle { min-height: 44px; padding-inline: 8px; }
+  button.vname { min-height: 44px; padding-block: 8px; }
+  .seg { max-width: 100%; overflow-x: auto; }
+  .seg button, #custapply, #retryload, #clearfilters, .mchip,
+  .fchip, .focusbtn, .feed-focus, th button, .convo .head {
+    min-height: 44px;
+  }
+  #custrange.show { display: grid; width: 100%; grid-template-columns: 1fr; }
+  #custrange input { width: 100%; min-height: 44px; }
+  .tiles, .tiles.secondary { grid-template-columns: 1fr; }
+  .tile { padding: 10px 12px; }
+  .diagnostic > summary { min-height: 44px; padding: 12px; }
+  .wrow { grid-template-columns: 1fr; gap: 4px; padding-block: 6px; }
+  .wtrack { min-height: 14px; }
+  .wval { text-align: left; }
+  .vrow { grid-template-columns: 1fr; gap: 5px; padding-block: 9px; }
+  .vstats { text-align: left; white-space: normal; }
+  .convo-controls { align-items: stretch; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important; animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important; transition-duration: .01ms !important;
+  }
+}
+</style>
+<link rel="stylesheet" href="/static/benchmark.css">
+<link rel="stylesheet" href="/static/workspace.css">
+<link rel="stylesheet" href="/static/icons.css">
+</head>
+<body>
+<nav class="topnav" id="topnav" aria-label="Primary">
+  <a href="#/" data-nav="overview" class="on">Overview</a>
+  <a href="#/benchmark" data-nav="benchmark">Benchmark</a>
+  <a href="/static/compression.html">Compression &amp; Memory</a>
+  <a href="#/events" data-nav="events">Events</a>
+  <!-- Hermes core web UI (loopback :9119 — on the mini directly, on the MBP via
+       hermes-tunnel.sh). Errors = api error store; Usage = per-model token
+       analytics (/api/analytics/models). Core owns these since 2026-08-02, so
+       the dashboard links out instead of duplicating them. -->
+  <a href="http://localhost:9119/errors" target="_blank" rel="noopener">Errors ↗</a>
+  <a href="http://localhost:9119/models" target="_blank" rel="noopener">Usage ↗</a>
+</nav>
+<section id="page-overview">
+<div id="healthbanner" class="healthbanner" hidden></div>
+<div class="ws-layout">
+  <aside class="ws-rail" id="wsrail">
+    <div class="ws-brand"><span class="ws-lg" aria-hidden="true"></span><h1>Hermes LLM Ops</h1><span id="envbadge" class="envbadge">env: <b id="envbadge-mode">…</b></span></div>
+    <nav class="ws-nav" aria-label="Sections">
+      <div class="ws-rg"><h6>Monitor</h6>
+        <a class="on" data-cat="overview" href="#/" title="KPIs, main chart, fleet health and live feed at a glance">▦ <span>Overview</span></a>
+        <a data-cat="fleet" href="#/" title="Host resources over time and the live model pool">▣ <span>Fleet</span></a>
+        <a data-cat="live" href="#/" title="MoA turn waterfall and per-model variance">↯ <span>Live ops</span></a>
+      </div>
+      <div class="ws-rg"><h6>Models</h6>
+        <a data-cat="routing" href="#/" title="Presence-aware role routing from the router service">⑂ <span>Routing &amp; roles</span></a>
+        <a data-cat="memory" href="#/" title="Context growth, KV pool pressure and request efficiency">◫ <span>Memory &amp; KV</span></a>
+        <a href="#/benchmark" title="Infra benchmark runs">▤ <span>Benchmark</span></a>
+      </div>
+      <div class="ws-rg"><h6>History</h6>
+        <a data-cat="conv" href="#/" title="Conversations in the selected range"><span class="ico ico-convos" aria-hidden="true"></span> <span>Convos</span></a>
+        <a href="#/events" title="Live event topology">≣ <span>Events</span></a>
+        <a href="/static/compression.html" title="Compression &amp; memory deep-dive">◷ <span>Compression</span></a>
+        <a href="/static/demo-widget-lab.html" title="Widget Lab carry-over demos for this plugin">◎ <span>Widget lab</span></a>
+        <a href="/static/demo-usable.html" title="Usable Widget Lab set for plugin + full dashboard">◉ <span>Usable widgets</span></a>
+        <a href="/static/demo-runs.html#/range=6h" title="runs-v1 lab: live request volume vs errors">▧ <span>runs-v1 lab</span></a>
+        <a href="/static/demo-context.html#/range=6h" title="context-v1 lab: step-line growth + session gauge">◎ <span>context-v1 lab</span></a>
+        <a href="/static/demo-memory.html#/range=6h" title="memory-v1 lab: KV pool occupancy + efficiency scatter">▣ <span>memory-v1 lab</span></a>
+        <a href="/static/demo-speed.html#/range=6h" title="speed-v1 lab: tok/s isolation hover">⌁ <span>speed-v1 lab</span></a>
+        <a href="/static/demo-router.html#/range=6h" title="router-v1 lab: live role router lanes">⑂ <span>router-v1 lab</span></a>
+      </div>
+    </nav>
+    <div class="ws-foot">
+      <footer id="opsfooter" aria-label="About this deployment"></footer>
+      <a class="ws-classic" href="/static/classic.html" title="The previous stacked layout, frozen as-is">Classic view ›</a>
+    </div>
+  </aside>
+  <div class="ws-main">
+    <div class="ws-topbar">
+      <button type="button" id="wsham" aria-label="Open navigation"><span class="ico ico-menu" aria-hidden="true"></span></button>
+      <span class="ws-crumb" id="wscrumb">Overview</span>
+      <span class="spacer"></span>
+      <span class="seg" id="rangesel" role="group" aria-label="Time range">
+      <button type="button" data-h="1" aria-pressed="false">1h</button><button type="button" data-h="6" class="on" aria-pressed="true">6h</button><button type="button" data-h="12" aria-pressed="false">12h</button>
+      <button type="button" data-h="24" aria-pressed="false">24h</button><button type="button" data-day="0" aria-pressed="false">today</button><button type="button" data-day="1" aria-pressed="false">yesterday</button>
+      <button type="button" data-h="168" aria-pressed="false">7d</button><button type="button" data-h="custom" id="custbtn" aria-pressed="false" aria-expanded="false" aria-controls="custrange">custom</button>
+    </span>
+      <span id="custrange">
+      <label for="custfrom">From</label><input type="datetime-local" id="custfrom" aria-describedby="custerror" aria-invalid="false">
+      <label for="custto">To</label><input type="datetime-local" id="custto" aria-describedby="custerror" aria-invalid="false">
+      <button id="custapply" type="button">apply</button>
+      <span id="custerror" role="alert" aria-atomic="true"></span>
+    </span>
+      <input id="searchfilter" type="search" placeholder="model, session, error, host">
+      <div class="ws-popwrap" id="wsfilterwrap">
+        <button type="button" class="chip" id="wsfilterbtn" aria-expanded="false" aria-controls="wsfilterpop" title="Host / event filters, errors-only, env mode">Filters ▾</button>
+        <div class="ws-popover" id="wsfilterpop">
+          <label class="control"><span>Host</span><select id="hostsel"><option value="">all hosts</option></select></label>
+          <label class="control"><span>Event</span><select id="kindfilter">
+      <option value="">all events</option><option value="api">api</option><option value="moa_turn">moa turn</option>
+      <option value="moa_ref">moa ref</option><option value="moa_agg">moa agg</option><option value="error">error</option>
+      <option value="subagent_stop">subagent</option><option value="host_stats">host stats</option><option value="pool_status">pool status</option>
+    </select></label>
+          <label class="control toggle"><input id="errorsonly" type="checkbox"> errors only</label>
+          <div class="ws-poplab">Env mode</div>
+          <span class="seg" id="envmodesel" role="group" aria-label="Hermes environment mode">
+      <button type="button" data-mode="optimized-moa" aria-pressed="false">Optimized MoA</button>
+      <button type="button" data-mode="single-model" aria-pressed="false">Single-model</button>
+      <button type="button" data-mode="restore-current" aria-pressed="false">Restore current</button>
+    </span>
+          <span id="envmode-badge" class="envmode-badge" role="status" aria-live="polite">mode: <strong id="envmode-active">…</strong></span>
+        </div>
+      </div>
+      <span class="seg" id="themesel" role="group" aria-label="Color theme">
+      <button type="button" data-theme="light" aria-pressed="false">Light</button>
+      <button type="button" data-theme="dark" aria-pressed="false">Dark</button>
+      <button type="button" data-theme="hermes" aria-pressed="false">Hermes</button>
+      <button type="button" data-theme="auto" class="on" aria-pressed="true">Auto</button>
+    </span>
+      <span class="filter-actions"><span id="activefilters"></span><span id="filterstatus" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></span><button id="clearfilters" type="button">clear all</button></span>
+      <span class="kbd-hint" aria-hidden="true"><kbd>/</kbd> search · <kbd>j</kbd><kbd>k</kbd> feed · <kbd>e</kbd> errors</span>
+    </div>
+    <div class="ws-cats" id="wscats" role="tablist" aria-label="Overview sections">
+      <button type="button" class="on" data-cat="overview" title="KPIs, main chart, fleet health and live feed at a glance">Overview</button>
+      <button type="button" data-cat="fleet" title="Host resources over time and the live model pool">Fleet</button>
+      <button type="button" data-cat="live" title="MoA turn waterfall and per-model variance">Live ops</button>
+      <button type="button" data-cat="routing" title="Presence-aware role routing from the router service">Routing &amp; roles</button>
+      <button type="button" data-cat="memory" title="Context growth, KV pool pressure and request efficiency">Memory &amp; KV</button>
+      <button type="button" data-cat="conv" title="Conversations in the selected range">Conversations</button>
+      <button type="button" class="ws-actbtn" id="wsact" title="Router analysis notes and role usage">◔ Recent changes</button>
+    </div>
+    <div class="ws-workspaces">
+      <section class="workspace on" data-ws="overview" id="operations-summary" aria-label="Overview">
+        <div class="ws-kchips">
+<div class="tiles">
+    <div class="tile tip-target" id="tile-conn" data-tip-scope="tile" data-tip-key="conn"><div class="k">Connection / service</div><div class="v status"><span id="conn" role="status" aria-live="polite" aria-atomic="true"><span class="dot" aria-hidden="true"></span><span id="connlabel">connecting…</span></span></div><div class="sub"><button id="retryload" type="button" hidden>retry history</button></div></div>
+    <div class="tile tip-target" id="tile-err" data-tip-scope="tile" data-tip-key="err"><div class="k">Errors</div><div class="v" id="t-err">–</div><div class="sub" id="t-err-sub">in selected range</div><canvas class="kspark" id="spark-err" aria-hidden="true"></canvas></div>
+    <div class="tile tip-target" id="tile-latency" data-tip-scope="tile" data-tip-key="latency"><div class="k">Median latency</div><div class="v" id="t-latency">–</div><div class="sub">seconds per request</div><canvas class="kspark" id="spark-latency" aria-hidden="true"></canvas></div>
+    <div class="tile tip-target" id="tile-tps" data-tip-scope="tile" data-tip-key="tps"><div class="k">Throughput / median speed</div><div class="v" id="t-tps">–</div><div class="sub">output tok/s per request</div><canvas class="kspark" id="spark-tps" aria-hidden="true"></canvas></div>
+    <div class="tile tip-target" id="tile-req" data-tip-scope="tile" data-tip-key="req"><div class="k">Request volume</div><div class="v" id="t-req">–</div><div class="sub" id="t-req-sub"></div><canvas class="kspark" id="spark-req" aria-hidden="true"></canvas></div>
+  </div>
+  <div class="tiles secondary">
+    <div class="tile tip-target" id="tile-tok" data-tip-scope="tile" data-tip-key="tok"><div class="k">Tokens</div><div class="v" id="t-tok">–</div><div class="sub" id="t-tok-sub"></div><canvas class="kspark" id="spark-tok" aria-hidden="true"></canvas></div>
+    <div class="tile tip-target" id="tile-conv" data-tip-scope="tile" data-tip-key="conv"><div class="k">Conversations</div><div class="v" id="t-conv">–</div><div class="sub" id="t-conv-sub"></div><canvas class="kspark" id="spark-conv" aria-hidden="true"></canvas></div>
+    <div class="tile tip-target" id="tile-cache" data-tip-scope="tile" data-tip-key="cache"><div class="k">Cache hit</div><div class="v" id="t-cache">–</div><div class="sub" id="t-cache-sub">share of prompt tokens (provider-reported)</div><canvas class="kspark" id="spark-cache" aria-hidden="true"></canvas></div>
+    <div class="tile tip-target" id="tile-pool" data-tip-scope="tile" data-tip-key="pool"><div class="k">Peak pool pressure</div><div class="v" id="t-pool">–</div><div class="sub" id="t-pool-sub">concurrent context vs loaded ctx</div><canvas class="kspark" id="spark-pool" aria-hidden="true"></canvas></div>
+  </div>
+
+        </div>
+<div class="card">
+  <h2>
+    <span id="charttitle">Speed over time</span>
+    <button type="button" class="help-btn" data-help="chart" aria-label="What does speed over time show?">ⓘ</button>
+    <span class="seg" id="metricsel" role="group" aria-label="Chart metric">
+      <button type="button" data-m="tps" class="on" aria-pressed="true">tok/s</button>
+      <button type="button" data-m="duration_s" aria-pressed="false">duration</button>
+      <button type="button" data-m="output_tokens" aria-pressed="false">output tokens</button>
+    </span>
+    <button type="button" class="feedbtn" id="chartzoomreset" hidden>reset zoom</button>
+    <span class="spacer"></span>
+    <span id="legend"></span>
+  </h2>
+  <div id="chartwrap">
+    <svg id="chart" role="group" aria-labelledby="chart-title chart-desc"><title id="chart-title">Request performance over time</title><desc id="chart-desc">Per-request metric over time, colored by model, with failed requests marked at the baseline.</desc></svg>
+    <div id="tooltip" class="tipbox"></div>
+  </div>
+  <div id="brushhint">drag to zoom · hover for values · click legend chips to hide series</div>
+  <div id="modelstats" class="modelstats"></div>
+</div>
+
+        <div class="card ws-fleetcard"><h2>Fleet</h2>
+          <div class="fleet" id="fleet" aria-label="Fleet status"></div>
+        </div>
+<div class="cols">
+  <div class="card">
+    <h2>Recent errors <span id="errorcount" class="feed-meta"></span>
+      <button type="button" class="help-btn" data-help="errors" aria-label="What does recent errors show?">ⓘ</button>
+    </h2>
+    <div id="errorsfeed" class="error-list"><div class="empty">waiting for error events…</div></div>
+  </div>
+  <div class="card">
+    <h2>Live request feed <span id="feedcount" class="feed-meta"></span>
+      <button type="button" class="help-btn" data-help="feed" aria-label="What does the live request feed show?">ⓘ</button>
+      <button type="button" class="feedbtn" id="hbtoggle" aria-pressed="false" title="Include pool_status / host_stats heartbeats in history and this feed">show heartbeats</button>
+      <button type="button" class="feedbtn" id="csvexport" title="Download the visible rows as CSV">⤓ CSV</button>
+    </h2>
+    <div id="feedwrap" class="scroll-x">
+      <table>
+        <thead><tr>
+          <th aria-sort="descending"><button type="button" data-sort="ts">time</button></th><th aria-sort="none"><button type="button" data-sort="host">host</button></th>
+          <th aria-sort="none"><button type="button" data-sort="kind">kind</button></th><th aria-sort="none"><button type="button" data-sort="model">model</button></th>
+          <th class="num" aria-sort="none"><button type="button" data-sort="input_tokens">in</button></th><th class="num" aria-sort="none"><button type="button" data-sort="output_tokens">out</button></th>
+          <th class="num" aria-sort="none"><button type="button" data-sort="duration_s">duration</button></th><th class="num" aria-sort="none"><button type="button" data-sort="tps">tok/s</button></th>
+        </tr></thead>
+        <tbody id="feed"><tr><td colspan="8" class="empty">waiting for records…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+        <details class="diagnostic ws-fold" open><summary>Token volume <span class="feed-meta">stacked by model</span></summary>
+          <div class="diagnostic-body">
+<div class="card">
+  <h2>
+    Token volume <span style="font-weight:400;color:var(--ink-3)">stacked by model</span>
+    <button type="button" class="help-btn" data-help="volume" aria-label="What does token volume show?">ⓘ</button>
+    <span class="seg" id="volmode" role="group" aria-label="Token volume mode">
+      <button type="button" data-v="out" class="on" aria-pressed="true">output</button>
+      <button type="button" data-v="total" aria-pressed="false">in + out</button>
+    </span>
+    <span class="spacer"></span>
+    <span id="vollegend"></span>
+  </h2>
+  <div id="volwrap">
+    <svg id="volchart" role="group" aria-labelledby="volchart-title volchart-desc" style="width:100%;height:190px;display:block"><title id="volchart-title">Token volume over time</title><desc id="volchart-desc">Token totals in time buckets, stacked and colored by model.</desc></svg>
+    <div id="voltip" class="tipbox"></div>
+  </div>
+</div>
+
+          </div>
+        </details>
+      </section>
+      <section class="workspace" data-ws="fleet" aria-label="Fleet">
+<details class="diagnostic" data-diagnostic="host">
+  <summary>Host resources</summary>
+  <div class="diagnostic-body"><div class="card">
+    <h2>CPU and memory <span id="hostlegend"></span>
+      <button type="button" class="help-btn" data-help="host" aria-label="What do host resources show?">ⓘ</button>
+    </h2>
+    <div id="hostres"></div>
+  </div>
+</div></details>
+<details class="diagnostic" data-diagnostic="pool" open>
+  <summary>Model pool</summary>
+  <div class="diagnostic-body"><div id="poolnow"></div></div>
+</details>
+      </section>
+      <section class="workspace" data-ws="live" aria-label="Live ops">
+<details class="diagnostic" data-diagnostic="moa">
+  <summary>MoA execution</summary>
+  <div class="diagnostic-body"><div class="card">
+    <h2>Turn waterfall
+      <button type="button" class="help-btn" data-help="waterfall" aria-label="What does the MoA turn waterfall show?">ⓘ</button>
+      <span class="meta" style="font-weight:400;color:var(--ink-3)">proposers run in parallel; the aggregator acts after the slowest</span></h2>
+    <canvas id="moaspark" class="moaspark" aria-hidden="true"></canvas>
+    <div id="waterfall"><div class="empty">no MoA turns in range</div></div>
+  </div>
+</div></details>
+<details class="diagnostic" data-diagnostic="variance">
+  <summary>Per-model variance</summary>
+  <div class="diagnostic-body"><div class="card">
+    <h2>Per-model variance <span id="vartitle" style="font-weight:400;color:var(--ink-3)"></span>
+      <button type="button" class="help-btn" data-help="variance" aria-label="What does per-model variance show?">ⓘ</button>
+    </h2>
+    <div id="variance"><div class="empty">waiting for records…</div></div>
+  </div></div>
+</details>
+<details class="diagnostic" data-diagnostic="guardrails">
+  <summary>Guardrails &amp; empty responses</summary>
+  <div class="diagnostic-body"><div class="card">
+    <h2>Guardrails &amp; empty responses
+      <span class="meta" style="font-weight:400;color:var(--ink-3)">tool-guardrail halts (agent.log) and reasoning-only replies — rules R12/R13</span></h2>
+    <div id="guardrails"><div class="empty">no guardrail events in range</div></div>
+  </div></div>
+</details>
+      </section>
+      <section class="workspace" data-ws="routing" aria-label="Routing and roles">
+<details class="diagnostic" data-diagnostic="router" open>
+  <summary>Model router — roles &amp; analysis</summary>
+  <div class="diagnostic-body">
+    <div class="card">
+      <h2>Role routing <span class="feed-meta" id="routermeta">presence-aware aliases → live models</span></h2>
+      <div id="routerroles"><div class="empty">Loading router status…</div></div>
+    </div>
+  </div>
+</details>
+      </section>
+      <section class="workspace" data-ws="memory" aria-label="Memory and KV">
+<details class="diagnostic" data-diagnostic="context">
+  <summary>Context growth</summary>
+  <div class="diagnostic-body"><div class="card">
+    <h2>Context growth
+      <button type="button" class="help-btn" data-help="context" aria-label="What does context growth show?">ⓘ</button>
+      <span class="meta" style="font-weight:400;color:var(--ink-3)">input tokens per call, one line per conversation · ▼ compaction · <span class="ico ico-x" aria-hidden="true"></span> error</span></h2>
+    <div id="ctxwrap">
+      <svg id="ctxchart" role="group" aria-labelledby="ctxchart-title ctxchart-desc" style="width:100%;height:220px;display:block"><title id="ctxchart-title">Context growth by conversation</title><desc id="ctxchart-desc">Input tokens per call over time, with one line per recent conversation.</desc></svg>
+      <div id="ctxtip" class="tipbox"></div>
+    </div>
+  </div>
+</div></details>
+<details class="diagnostic" data-diagnostic="compression">
+  <summary>Compression &amp; KV pool</summary>
+  <div class="diagnostic-body"><div class="card">
+    <h2>KV pool pressure
+      <button type="button" class="help-btn" data-help="compression" aria-label="What does KV pool pressure show?">ⓘ</button>
+      <span class="meta" style="font-weight:400;color:var(--ink-3)">tokens in flight per model vs its loaded context pool</span></h2>
+    <div id="kvwrap">
+      <svg id="kvchart" role="group" aria-labelledby="kvchart-title kvchart-desc" style="width:100%;height:220px;display:block"><title id="kvchart-title">KV pool pressure</title><desc id="kvchart-desc">Concurrent in-flight context per model over time against its loaded context pool.</desc></svg>
+      <div id="kvtip" class="tipbox"></div>
+    </div>
+  </div></div>
+</details>
+<details class="diagnostic" data-diagnostic="efficiency">
+  <summary>Efficiency</summary>
+  <div class="diagnostic-body"><div class="card">
+    <h2>Efficiency
+      <button type="button" class="help-btn" data-help="efficiency" aria-label="What does the efficiency chart show?">ⓘ</button>
+      <span class="meta" style="font-weight:400;color:var(--ink-3)">duration vs output tokens — guide curves are constant tok/s</span></h2>
+    <div id="effwrap">
+      <svg id="effchart" role="group" aria-labelledby="effchart-title effchart-desc" style="width:100%;height:220px;display:block"><title id="effchart-title">Request efficiency</title><desc id="effchart-desc">Request duration versus output tokens, colored by model, with constant tokens-per-second guide curves.</desc></svg>
+      <div id="efftip" class="tipbox"></div>
+    </div>
+  </div>
+</div></details>
+      </section>
+      <section class="workspace" data-ws="conv" aria-label="Conversations">
+<details class="diagnostic" data-diagnostic="conversations">
+  <summary>Conversations</summary>
+  <div class="diagnostic-body"><div class="card">
+    <h2>Conversations <span class="meta" style="font-weight:400;color:var(--ink-3)">grouped per agent/model — MoA references, aggregator and subagents included</span></h2>
+    <div id="convos"><div class="empty">waiting for records…</div></div>
+  </div>
+</div></details>
+      </section>
+    </div>
+  </div>
+</div>
+<div class="ws-scrim" id="wsscrim"></div>
+<aside class="ws-panel" id="wspanel" aria-label="Router analysis and role usage">
+  <header><h3>Recent changes &amp; usage</h3><button type="button" class="ws-x" id="wspclose" aria-label="Close panel"><span class="ico ico-x" aria-hidden="true"></span></button></header>
+  <div class="ws-tabs" role="tablist">
+    <button type="button" class="on" data-pane="notes" role="tab">Analysis &amp; notes</button>
+    <button type="button" data-pane="usage" role="tab">Role usage</button>
+  </div>
+  <div class="ws-pane on" data-pane="notes">
+    <div class="card">
+      <h2>Analysis &amp; recommended-setup notes <span class="feed-meta">from the router service — see server/model-router/analysis/</span></h2>
+      <div id="routernotes"><div class="empty">Loading notes…</div></div>
+    </div>
+  </div>
+  <div class="ws-pane" data-pane="usage">
+    <div class="card">
+      <h2>Role usage <span class="feed-meta" id="routerusagemeta">last 24h · from the router execution log</span></h2>
+      <div id="routerusage"><div class="empty">Loading usage…</div></div>
+      <div id="routerdegrade"></div>
+    </div>
+  </div>
+</aside>
+<div id="contexttip" class="tipbox context-tip" role="tooltip" hidden></div>
+</section><!-- /page-overview -->
+
+<section id="page-benchmark" hidden>
+  <header class="bm-page-header">
+    <h1>Infra Benchmark</h1>
+    <p class="bm-blurb">
+      <b>Current</b> shows what is loaded now per usage × host, with the latest measurement and its age.
+      <b>Best</b> is the shareable “copy this config” reference — yield = <code>tokens/sec ÷ (resource_GB × parallel)</code>
+      (VRAM when known, else model file GB). Both populate only when real requests flow.
+    </p>
+    <div class="bm-toolbar">
+      <span class="seg" id="bmHours" role="group" aria-label="Benchmark range">
+        <button type="button" data-h="24">24h</button>
+        <button type="button" data-h="168" class="on">7d</button>
+        <button type="button" data-h="720">30d</button>
+        <button type="button" data-h="8760">All</button>
+      </span>
+      <button type="button" class="btn" id="bmMark">+ Mark experiment…</button>
+      <button type="button" class="btn" id="bmRefresh">Refresh</button>
+    </div>
+  </header>
+
+  <div class="card bm-card" id="bmCurrentCard">
+    <h2>
+      <span>Current — what’s loaded now</span>
+      <span class="feed-meta">latest sample per usage × host</span>
+    </h2>
+    <div class="bm-scroll">
+      <table id="bmCurrentTable"><tbody><tr><td class="bm-empty">Loading…</td></tr></tbody></table>
+    </div>
+    <div class="bm-honest" id="bmHonest" hidden></div>
+  </div>
+
+  <div class="card bm-card" id="bmScatterCard">
+    <h2>
+      <span>Samples over time — yield</span>
+      <span class="feed-meta" id="bmScatterMeta">hover for values · drag to zoom · double-click to reset</span>
+    </h2>
+    <canvas id="bmScatter" class="bm-scatter"></canvas>
+  </div>
+
+  <div class="section-title">Best setups (reference)</div>
+  <div class="bm-cats" id="bmCats" role="tablist" aria-label="Usage categories"></div>
+  <div id="bmBest"></div>
+
+  <div class="card bm-card">
+    <h2>
+      <span>Setup samples</span>
+      <span class="feed-meta">lean rows · forever retained</span>
+    </h2>
+    <div class="bm-filter-toggle-row">
+      <button class="btn on" type="button" id="bmToggleFilters" aria-expanded="true" aria-controls="bmFilters">Hide filters</button>
+      <span class="bm-hint" id="bmFilterHint">Search, host, usage, experiment, min yield</span>
+    </div>
+    <div class="bm-filters" id="bmFilters">
+      <div class="bm-field"><label for="bmQ">Search</label><input id="bmQ" type="search" placeholder="model, experiment, hermes knobs…"></div>
+      <div class="bm-field"><label for="bmHost">Host</label><select id="bmHost"><option value="">All</option></select></div>
+      <div class="bm-field"><label for="bmUsage">Usage</label><select id="bmUsage"><option value="">All</option></select></div>
+      <div class="bm-field"><label for="bmExp">Experiment</label>
+        <select id="bmExp"><option value="">All</option><option value="named">Named only</option><option value="auto">Auto only</option></select>
+      </div>
+      <div class="bm-field"><label for="bmYieldMin">Min yield</label>
+        <select id="bmYieldMin"><option value="">Any</option><option value="0.5">≥ 0.50</option><option value="0.6">≥ 0.60</option><option value="0.8">≥ 0.80</option></select>
+      </div>
+      <div class="bm-filter-actions"><button class="btn" type="button" id="bmClear">Clear</button></div>
+    </div>
+    <div class="bm-meta-row">
+      <div>Showing <b id="bmShown">0</b> of <b id="bmTotal">0</b> <span id="bmChips"></span></div>
+      <div class="bm-chip" id="bmSortLabel">Sort: ts ↓</div>
+    </div>
+    <div class="bm-scroll">
+      <table id="bmTable">
+        <thead>
+          <tr>
+            <th class="sortable sorted-desc" data-key="ts" aria-sort="descending"><button type="button">Time <span class="sort"></span></button><span class="th-tip">Sample timestamp. Click to sort.</span></th>
+            <th class="sortable" data-key="host" aria-sort="none"><button type="button">Host <span class="sort"></span></button><span class="th-tip">Serving machine. Click to sort.</span></th>
+            <th class="sortable" data-key="usage" aria-sort="none"><button type="button">Usage <span class="sort"></span></button><span class="th-tip">Stack role. Click to sort.</span></th>
+            <th class="sortable" data-key="model" aria-sort="none"><button type="button">Model <span class="sort"></span></button><span class="th-tip">Full LM Studio id (hover cell). Click to sort.</span></th>
+            <th class="sortable" data-key="ctx_k" aria-sort="none"><button type="button">Ctx <span class="sort"></span></button><span class="th-tip">Max context (k). Click to sort.</span></th>
+            <th class="sortable" data-key="parallel" aria-sort="none"><button type="button">Par <span class="sort"></span></button><span class="th-tip">Parallel slots. Click to sort.</span></th>
+            <th class="sortable" data-key="ttl" aria-sort="none"><button type="button">TTL <span class="sort"></span></button><span class="th-tip">Idle unload / pinned. Click to sort.</span></th>
+            <th class="sortable" data-key="offload" aria-sort="none"><button type="button">Offload <span class="sort"></span></button><span class="th-tip">Format / offload hint. Click to sort.</span></th>
+            <th class="sortable" data-key="hermes_knobs" aria-sort="none"><button type="button">Hermes <span class="sort"></span></button><span class="th-tip">Lean agent knobs. Click to sort.</span></th>
+            <th class="sortable" data-key="tps" aria-sort="none"><button type="button">t/s <span class="sort"></span></button><span class="th-tip">Rolling tokens/sec. Click to sort.</span></th>
+            <th class="sortable" data-key="p50_s" aria-sort="none"><button type="button">p50 <span class="sort"></span></button><span class="th-tip">Median latency. Click to sort.</span></th>
+            <th class="sortable" data-key="model_gb" aria-sort="none"><button type="button">VRAM <span class="sort"></span></button><span class="th-tip">VRAM or model file GB (*). Click to sort.</span></th>
+            <th class="sortable" data-key="cpu_load" aria-sort="none"><button type="button">CPU <span class="sort"></span></button><span class="th-tip">Host load average. Click to sort.</span></th>
+            <th class="sortable" data-key="mem_used_gb" aria-sort="none"><button type="button">Mem <span class="sort"></span></button><span class="th-tip">System memory used/total. Click to sort.</span></th>
+            <th class="sortable" data-key="power_w" aria-sort="none"><button type="button">Power <span class="sort"></span></button><span class="th-tip">Watts when available. Click to sort.</span></th>
+            <th class="sortable" data-key="yield" aria-sort="none"><button type="button">Yield <span class="sort"></span></button><span class="th-tip">t/s ÷ (resource_GB × parallel). Click to sort.</span></th>
+            <th class="sortable" data-key="experiment" aria-sort="none"><button type="button">Exp <span class="sort"></span></button><span class="th-tip">Named marker or auto. Click to sort.</span></th>
+          </tr>
+        </thead>
+        <tbody id="bmTbody"><tr><td colspan="17" class="bm-empty">Loading…</td></tr></tbody>
+      </table>
+    </div>
+    <p class="bm-note">Hover column headers, usage tags, and truncated model names for context. Power and VRAM stay empty when the host cannot report them.</p>
+  </div>
+
+  <dialog id="bmmark-dialog" aria-labelledby="bmmark-dlg-title">
+    <form method="dialog" class="dlg-body" id="bmmark-form">
+      <h2 id="bmmark-dlg-title">Mark experiment</h2>
+      <p class="dlg-lead">The label is applied to new samples on all hosts until cleared.</p>
+      <label for="bmmark-label">Experiment label</label>
+      <input id="bmmark-label" name="label" type="text" autocomplete="off" spellcheck="false">
+      <div id="bmmark-error" role="alert" aria-atomic="true"></div>
+      <div class="dlg-actions">
+        <button type="submit" value="cancel" id="bmmark-cancel">Cancel</button>
+        <button type="button" id="bmmark-confirm">Mark</button>
+      </div>
+    </form>
+  </dialog>
+  <div id="bmUsageMenu" class="bm-usage-menu" hidden></div>
+</section>
+
+<dialog id="envmode-dialog" aria-labelledby="envmode-dlg-title">
+  <form method="dialog" class="dlg-body" id="envmode-form">
+    <h2 id="envmode-dlg-title">Apply environment mode</h2>
+    <p class="dlg-lead" id="envmode-dlg-lead">Review the proposed config changes, then type the mode id to confirm.</p>
+    <ul id="envmode-diff" aria-label="Proposed config diff"></ul>
+    <label for="envmode-confirm">Type <code id="envmode-confirm-hint">mode-id</code> to enable Apply</label>
+    <input id="envmode-confirm" name="confirm" type="text" autocomplete="off" spellcheck="false">
+    <div id="envmode-error" role="alert" aria-atomic="true"></div>
+    <div class="dlg-actions">
+      <button type="submit" value="cancel" id="envmode-cancel">Cancel</button>
+      <button type="button" id="envmode-apply" disabled>Apply</button>
+    </div>
+  </form>
+</dialog>
+
+<section id="page-events" hidden>
+  <header class="bm-page-header">
+    <h1>Live Event Topology</h1>
+    <p class="bm-blurb">
+      Real-time event streams, selectable by app: <b>hitl-v1</b> (document-OCR lifecycle from :8010, via
+      <code>hitl_forwarder.py</code> into the <code>hitl_events</code> table) and <b>hermes / LLM</b>
+      (per-request model traffic from the metrics forwarders). Hover a node for a quick look, click to pin details;
+      the <b>Events</b> tab drills into individual occurrences.
+    </p>
+  </header>
+  <div id="hev-root"></div>
+</section>
+
+<script src="/static/util.js"></script>
+<script src="/static/benchmark.js"></script>
+<script src="/static/events.js"></script>
+<script src="/static/state.js"></script>
+<script src="/static/tips.js"></script>
+<script src="/static/charts.js"></script>
+<script src="/static/fleet.js"></script>
+<script src="/static/filters.js"></script>
+<script src="/static/envmode.js"></script>
+<script src="/static/workspace.js"></script>
+<script src="/static/main.js"></script>
+</body>
+</html>

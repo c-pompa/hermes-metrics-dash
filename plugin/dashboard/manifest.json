@@ -1,0 +1,13 @@
+{
+  "name": "metrics-dashboard",
+  "label": "Metrics",
+  "description": "Live LLM metrics: recent requests, health findings, usage map, and model-router interop view.",
+  "icon": "BarChart3",
+  "version": "0.5.0",
+  "tab": {
+    "path": "/metrics-dashboard",
+    "position": "after:analytics"
+  },
+  "entry": "dist/index.js",
+  "api": "plugin_api.py"
+}

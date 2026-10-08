@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>memory-v1 lab — KV pool + efficiency</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="widget-lab.css" />
+</head>
+<body class="lab-memory">
+  <div class="app">
+    <aside class="rail" aria-label="memory-v1 lab">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="4" width="6" height="6"/><rect x="14" y="4" width="6" height="6"/><rect x="4" y="14" width="6" height="6"/><rect x="14" y="14" width="6" height="6"/></svg>
+        </div>
+        <div>
+          <h1>memory-v1</h1>
+          <p>lab · not on Overview yet</p>
+        </div>
+      </div>
+      <nav class="nav">
+        <a class="is-active" href="#kv" data-jump="kv" data-tone="gold"><span class="dot"></span>KV pool</a>
+        <a href="#efficiency" data-jump="efficiency" data-tone="mint"><span class="dot"></span>Efficiency</a>
+        <a href="/static/demo-context.html#/range=6h"><span class="dot"></span>context-v1</a>
+        <a href="/static/demo-runs.html#/range=6h"><span class="dot"></span>runs-v1</a>
+        <a href="/static/demo-speed.html#/range=6h"><span class="dot"></span>speed-v1</a>
+        <a href="/static/demo-fan.html#/range=6h"><span class="dot"></span>fan-v1</a>
+        <a href="/#/" id="navLive"><span class="dot"></span>Live Overview</a>
+      </nav>
+      <div class="rail-note">
+        Cleaner Memory &amp; KV panels: KV occupancy vs loaded ctx, and duration × output with tok/s guides. Live <code>/api/recent</code> on :8899; mock if unreachable. Overview not patched. <code>docs/LAB-THEN-PATCH.md</code>.
+        <br /><br />
+        <a href="/" style="color:var(--mint)">← Live dashboard</a>
+      </div>
+    </aside>
+
+    <main class="gallery">
+      <header class="hero">
+        <div>
+          <h2>KV pool and efficiency, cleaned up</h2>
+          <p>Overview KV pool draws two thin polylines against a dashed cap. Overview efficiency plots every request as a same-size dot on a log axis. This lab uses Widget Lab interaction: color, isolation hover, <code>{title, meta}</code> tips, a fill gauge for the selected model’s peak vs pool, and model chips so a slow cluster is visible instead of a grey smear.</p>
+        </div>
+        <div class="filters" role="group" aria-label="Time range">
+          <button class="filter" data-range="1h">1h</button>
+          <button class="filter is-on" data-range="6h">6h</button>
+          <button class="filter" data-range="12h">12h</button>
+          <button class="filter" data-range="24h">24h</button>
+        </div>
+      </header>
+
+      <div class="lab-flow" aria-label="Lab then patch">
+        <div class="lab-flow-step">
+          <b>1. Live API</b>
+          <span><code>/api/recent</code> · in-flight tokens + duration/out</span>
+        </div>
+        <span class="lab-flow-arrow" aria-hidden="true">→</span>
+        <div class="lab-flow-step is-here">
+          <b>2. This lab</b>
+          <span>memory-v1 · KV + efficiency</span>
+        </div>
+        <span class="lab-flow-arrow" aria-hidden="true">→</span>
+        <div class="lab-flow-step">
+          <b>3. Patch Overview</b>
+          <span>Memory &amp; KV · Classic frozen</span>
+        </div>
+      </div>
+
+      <section class="stage" id="kv" data-kind="dash">
+        <div>
+          <div class="stage-label">
+            <span>Carry · Widget Lab gauge + area → KV pool</span>
+            <span><span class="status status-ready">Lab</span> Compression &amp; KV pool</span>
+          </div>
+          <article class="widget w-context-lab">
+            <header class="w-head">
+              <div class="w-id">
+                <span class="w-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 18V8M10 18V4M16 18v-6M22 18V10"/></svg></span>
+                <div>
+                  <h3>KV pool pressure</h3>
+                  <p id="kvSub">tokens in flight vs loaded ctx · one model selected</p>
+                </div>
+              </div>
+              <div class="w-actions">
+                <span class="chip chip-mint" id="liveChip"><span class="live-dot"></span> demo</span>
+              </div>
+            </header>
+            <p class="why-clean">Area under occupancy, dashed cap, color per model. Hover isolates a model; the gauge is peak in-flight / that model’s pool — not eight overlapping strokes.</p>
+            <div class="ctx-legend" id="kvLegend" role="tablist" aria-label="Models"></div>
+            <div class="ctx-pair">
+              <div class="panel grid-bg" style="position:relative;padding:8px">
+                <svg id="kvLabChart" class="chart ctx-chart" viewBox="0 0 520 220" aria-label="KV occupancy over time"></svg>
+                <div class="tooltip" id="kvLabTip"></div>
+              </div>
+              <div class="ctx-gauge-card">
+                <p class="sub">Selected peak vs pool</p>
+                <div class="gauge-wrap" style="height:128px">
+                  <svg id="kvGauge" viewBox="0 0 220 128" aria-label="Peak occupancy versus loaded context"></svg>
+                  <div class="gauge-label" id="kvGaugeLabel"><b>—</b><span class="sub">pick a model</span></div>
+                </div>
+                <p class="fan-detail" id="kvGaugeMeta">Cap from MODEL_POOL_CAPS</p>
+              </div>
+            </div>
+            <div class="kpi-row">
+              <div class="kpi"><b class="tabular" id="kvPeak">—</b><span>peak in-flight</span></div>
+              <div class="kpi"><b class="tabular" id="kvPct">—</b><span>of loaded ctx</span></div>
+              <div class="kpi"><b class="tabular" id="kvModelsN">—</b><span>models</span></div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="stage" id="efficiency" data-kind="dash">
+        <div>
+          <div class="stage-label">
+            <span>Carry · H2H dots interaction → efficiency</span>
+            <span><span class="status status-ready">Lab</span> Efficiency scatter</span>
+          </div>
+          <article class="widget w-context-lab">
+            <header class="w-head">
+              <div class="w-id">
+                <span class="w-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 12h6l2-6 4 12 2-6h2"/></svg></span>
+                <div>
+                  <h3>Efficiency</h3>
+                  <p id="effSub">duration vs output · guide curves are constant tok/s</p>
+                </div>
+              </div>
+            </header>
+            <p class="why-clean">Keep the log-x scatter — that is the right graph — but color and isolate by model like Widget Lab H2H dots. Slow requests sit below the 10 t/s guide instead of disappearing into a grey cloud.</p>
+            <div class="ctx-legend" id="effLegend" role="tablist" aria-label="Models"></div>
+            <div class="panel grid-bg" style="position:relative;padding:8px;margin-top:10px">
+              <svg id="effLabChart" class="chart ctx-chart" viewBox="0 0 680 240" aria-label="Duration versus output tokens"></svg>
+              <div class="tooltip" id="effLabTip"></div>
+            </div>
+            <div class="kpi-row">
+              <div class="kpi"><b class="tabular" id="effN">—</b><span>requests</span></div>
+              <div class="kpi"><b class="tabular" id="effMed">—</b><span>median t/s</span></div>
+              <div class="kpi"><b class="tabular" id="effSlow">—</b><span>below 10 t/s</span></div>
+            </div>
+            <div class="foot">
+              <span id="memFoot">Loading…</span>
+              <div class="w-actions">
+                <a class="btn" id="openOverview" href="/#/">Open live Overview</a>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+    </main>
+  </div>
+  <script src="memory-lab.js"></script>
+  <script src="demo-memory.js"></script>
+</body>
+</html>

@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Widget Lab carry-over — Hermes metrics</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="widget-lab.css" />
+</head>
+<body>
+  <div class="app">
+    <aside class="rail" aria-label="Carry-over index">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 14h4v6H4zM10 8h4v12h-4zM16 4h4v16h-4z"/></svg>
+        </div>
+        <div>
+          <h1>Hermes carry</h1>
+          <p>10 widget-lab demos · mock data</p>
+        </div>
+      </div>
+      <nav class="nav" id="nav">
+        <a href="#findings" data-tone="mint"><span class="dot"></span>Findings</a>
+        <a href="#empty" data-tone="mint"><span class="dot"></span>Empty ingest</a>
+        <a href="#fanout" data-tone="gold"><span class="dot"></span>MoA fan-out</a>
+        <a href="#router" data-tone="gold"><span class="dot"></span>Role router</a>
+        <a href="#runs" data-tone="mint"><span class="dot"></span>Request volume</a>
+        <a href="#alerts" data-tone="mint"><span class="dot"></span>Rules + latency</a>
+        <a href="#timeout" data-tone="gold"><span class="dot"></span>Duration ceiling</a>
+        <a href="#context" data-tone="mint"><span class="dot"></span>Context + H2H</a>
+        <a href="#graph" data-tone="mint"><span class="dot"></span>Tool / subagent graph</a>
+        <a href="#cost" data-tone="mint"><span class="dot"></span>Cost + errors</a>
+      </nav>
+      <div class="rail-note">
+        Mock telemetry only. Visual language from Widget Lab; copy and series mapped to Hermes plugin / desktop pane / full dashboard.
+        <br /><br />
+        <a href="/" style="color:var(--mint)">← Live dashboard</a>
+      </div>
+    </aside>
+
+    <main class="gallery">
+      <header class="hero">
+        <div>
+          <h2>Which Widget Lab UIs carry into Hermes metrics</h2>
+          <p>Ten ops/routing widgets map onto data the plugin already has (or can derive). Three media widgets stay in the lab. Demos below use Hermes names: DSv4 flash/pro, MoA, health rules, hosts mbp / mini / winpc.</p>
+        </div>
+        <div class="filters" role="group" aria-label="Filter by surface">
+          <button class="filter is-on" data-filter="all">All</button>
+          <button class="filter" data-filter="plugin">Plugin tab</button>
+          <button class="filter" data-filter="desktop">Desktop pane</button>
+          <button class="filter" data-filter="dash">Full dashboard</button>
+        </div>
+      </header>
+
+      <div class="carry-banner">
+        <table class="map-table">
+          <thead>
+            <tr><th>Widget Lab</th><th>Hermes mapping</th><th>Lands on</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Eval nightly-regression</td>
+              <td>Health-rule findings (R1–R13) as pass bars + firing cases</td>
+              <td><span class="lands"><span class="land plugin">plugin Findings</span><span class="land dash">dashboard</span></span></td>
+            </tr>
+            <tr>
+              <td>Traces empty</td>
+              <td>Empty ingest vs live 1h feed (toggle on the card)</td>
+              <td><span class="lands"><span class="land plugin">plugin</span><span class="land desktop">desktop idle/busy</span></span></td>
+            </tr>
+            <tr>
+              <td>Fan Out</td>
+              <td>MoA proposers + <code>delegate_task</code> children that never return</td>
+              <td><span class="lands"><span class="land desktop">desktop MoA</span><span class="land dash">Live ops</span></span></td>
+            </tr>
+            <tr>
+              <td>Model Router sankey</td>
+              <td>DSv4 flash / local / nvidia / pro traffic split</td>
+              <td><span class="lands"><span class="land plugin">plugin Routing</span><span class="land desktop">Roles + DSv4</span></span></td>
+            </tr>
+            <tr>
+              <td>Runs stacked bars</td>
+              <td>Request volume vs errors (24h / 7d / 30d)</td>
+              <td><span class="lands"><span class="land plugin">plugin spark</span><span class="land dash">Overview</span></span></td>
+            </tr>
+            <tr>
+              <td>Alert rules + heatmap</td>
+              <td>Findings mute list + duration heatmap by hour</td>
+              <td><span class="lands"><span class="land plugin">plugin Findings</span><span class="land dash">Overview latency</span></span></td>
+            </tr>
+            <tr>
+              <td>Timeout Ceiling</td>
+              <td>Request-duration histogram; ceiling is advisory (no write path yet)</td>
+              <td><span class="lands"><span class="land dash">dashboard</span></span></td>
+            </tr>
+            <tr>
+              <td>Context gauge + H2H</td>
+              <td>KV / input tokens vs loaded ctx; flash vs pro head-to-head</td>
+              <td><span class="lands"><span class="land dash">Memory &amp; KV</span><span class="land desktop">DSv4</span></span></td>
+            </tr>
+            <tr>
+              <td>Tool call graph</td>
+              <td>Hermes tools + subagents (calls / p50 / errors)</td>
+              <td><span class="lands"><span class="land dash">candidate</span></span></td>
+            </tr>
+            <tr>
+              <td>LLM cost + errors</td>
+              <td><code>cost_usd</code> by model + error-rate step with alert band</td>
+              <td><span class="lands"><span class="land dash">Overview</span></span></td>
+            </tr>
+            <tr class="skip">
+              <td>Deployments / Media / Views / Playback</td>
+              <td>No prompt-eval versioning or dubbing surface in this plugin</td>
+              <td><span class="lands"><span class="land skip">skip</span></span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Findings (Eval adapted) -->
+      <section class="stage" id="findings" data-kind="plugin dash">
+        <div>
+          <div class="stage-label"><span>Carry · Eval → Findings</span><span>Plugin Findings tab</span></div>
+          <article class="widget w-eval">
+            <header class="w-head">
+              <div class="w-id">
+                <span class="w-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="m8 12 2.8 2.8L16.5 9"/></svg></span>
+                <div>
+                  <h3>Findings · health rules</h3>
+                  <p>R1–R13 on the last 24h · 5 rules firing or watching</p>
+                </div>
+              </div>
+              <div class="seg" role="tablist" aria-label="Findings views">
+                <button class="is-on" data-eval-tab="summary" role="tab" aria-selected="true" aria-controls="evalSummary" id="tab-summary">Summary</button>
+                <button data-eval-tab="cases" role="tab" aria-selected="false" aria-controls="evalCases" id="tab-cases">Firing</button>
+                <button data-eval-tab="diff" role="tab" aria-selected="false" aria-controls="evalDiff" id="tab-diff">Flash vs pro</button>
+              </div>
+            </header>
+            <div class="eval-pane" id="evalSummary" role="tabpanel" aria-labelledby="tab-summary">
+              <div class="eval-top">
+                <div>
+                  <div class="sub">Clean share</div>
+                  <div class="metric-xl tabular" id="passRate">92.3%</div>
+                  <span class="chip chip-mint" style="margin:8px 0">+2.6 pt vs yesterday</span>
+                  <div class="legend" style="margin-top:10px;flex-direction:column;gap:6px">
+                    <span><i class="swatch" style="background:var(--mint)"></i>Ok</span>
+                    <span><i class="hatch-swatch"></i>Firing</span>
+                    <span><i class="swatch" style="background:#4a4a4a"></i>Muted</span>
+                  </div>
+                </div>
+                <div class="panel grid-bg" style="position:relative">
+                  <div class="sub" style="display:flex;justify-content:space-between"><span>Clean share · last 14 snapshots</span><span>threshold 90%</span></div>
+                  <svg id="evalSpark" class="chart chart-host" style="height:120px" viewBox="0 0 420 120" aria-label="Clean share last 14 snapshots"></svg>
+                  <div class="tooltip" id="evalTip"></div>
+                </div>
+              </div>
+              <table class="eval-table" id="evalTable">
+                <thead>
+                  <tr><th>Rule</th><th>Source</th><th>Clean</th><th>Δ 24h</th></tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+            <div class="eval-pane" id="evalCases" role="tabpanel" aria-labelledby="tab-cases" hidden>
+              <p class="sub" style="margin:0 0 10px">Five findings that moved the score this hour</p>
+              <div class="case-list" id="caseList"></div>
+            </div>
+            <div class="eval-pane" id="evalDiff" role="tabpanel" aria-labelledby="tab-diff" hidden>
+              <div class="diff-grid" id="evalDiffGrid"></div>
+            </div>
+            <div class="foot">
+              <span>Snapshot 03:10 · window 24h · source http://192.0.2.10:8899</span>
+              <div class="w-actions">
+                <button class="btn" id="openFailed">Open firing rules</button>
+                <button class="btn btn-white" data-toast="Muted R13 empty_response for 1h">Mute R13</button>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <!-- Empty ingest -->
+      <section class="stage" id="empty" data-kind="plugin desktop">
+        <div>
+          <div class="stage-label"><span>Carry · Traces empty → ingest</span><span>Plugin + desktop idle / busy</span></div>
+          <article class="widget w-traces" id="ingestCard">
+            <header class="w-head">
+              <div class="w-id">
+                <span class="w-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 14c3-8 6 8 9 0s6 8 7 0"/></svg></span>
+                <div>
+                  <h3 id="ingestTitle">Live ingest</h3>
+                  <p id="ingestSub">last hour · 47 api records · WS /events</p>
+                </div>
+              </div>
+              <div class="w-actions">
+                <span class="chip chip-mint" id="ingestChip"><span class="live-dot"></span> live · mini:8899</span>
+                <div class="seg" role="tablist" aria-label="Ingest state">
+                  <button data-ingest-tab="empty" role="tab" aria-selected="false" aria-controls="ingestEmpty">Empty</button>
+                  <button class="is-on" data-ingest-tab="live" role="tab" aria-selected="true" aria-controls="ingestLive" id="tab-ingest-live">Live</button>
+                </div>
+              </div>
+            </header>
+            <div class="eval-pane" id="ingestEmpty" role="tabpanel" hidden>
+            <div class="iso-wrap" aria-hidden="true">
+              <div class="iso-scene">
+                <div class="iso-card iso-a">
+                  <span style="position:absolute;left:10px;top:10px;font-size:10px;color:#8b8b8b">mbp · idle</span>
+                  <span class="iso-chip" style="right:10px;bottom:12px">ok</span>
+                  <span style="position:absolute;left:12px;top:36px;width:8px;height:8px;border-radius:99px;background:var(--mint)"></span>
+                </div>
+                <div class="iso-card iso-b"></div>
+                <div class="iso-card iso-c">
+                  <span style="position:absolute;left:12px;top:10px;font-size:10px;color:#8b8b8b">tok/s · —</span>
+                  <div style="position:absolute;left:16px;bottom:16px;display:flex;align-items:flex-end;gap:4px;height:36px">
+                    <i style="width:8px;height:14px;background:#2a2a2a;display:block;border-radius:2px"></i>
+                    <i style="width:8px;height:22px;background:#2a2a2a;display:block;border-radius:2px"></i>
+                    <i style="width:8px;height:28px;background:var(--mint);display:block;border-radius:2px"></i>
+                    <i style="width:8px;height:18px;background:#2a2a2a;display:block;border-radius:2px"></i>
+                  </div>
+                  <span class="iso-chip" style="right:8px;bottom:10px">1h</span>
+                </div>
+              </div>
+            </div>
+            <div class="center-copy">
+              <h4>Waiting for the first request</h4>
+              <p>Wire the three shell hooks. Records land in <code>requests.jsonl</code>, then this tab, the desktop chip, and the full dashboard.</p>
+            </div>
+            <pre class="code" id="snippet"><span class="cmd"># ~/.hermes/config.yaml</span>
+hooks:
+  post_api_request: ~/.hermes/hooks/metrics-emit.py
+  api_request_error: ~/.hermes/hooks/metrics-emit.py
+  subagent_stop: ~/.hermes/hooks/metrics-emit.py</pre>
+            <div class="foot" style="justify-content:center">
+              <button class="btn btn-white" id="copySnippet">Copy snippet</button>
+              <button class="btn" data-toast="Opened AGENTS.md ingest notes">Open ingest notes</button>
+            </div>
+            </div>
+            <div class="eval-pane" id="ingestLive" role="tabpanel" aria-labelledby="tab-ingest-live">
+              <div class="kpi-row ingest-kpis">
+                <div class="kpi"><b class="tabular" id="ingestReq">47</b><span>requests / 1h</span></div>
+                <div class="kpi"><b class="tabular" id="ingestTps">38.2</b><span>avg output tok/s</span></div>
+                <div class="kpi"><b class="tabular" id="ingestTok">124.8k</b><span>output tokens</span></div>
+              </div>
+              <div class="panel grid-bg" style="position:relative;margin-top:10px">
+                <div class="sub" style="display:flex;justify-content:space-between"><span>Requests · 5 min buckets</span><span>2 errors in window</span></div>
+                <svg id="ingestSpark" class="chart chart-host" style="height:72px" viewBox="0 0 420 72" aria-label="Live ingest sparkline last hour"></svg>
+                <div class="tooltip" id="ingestTip"></div>
+              </div>
+              <div class="ingest-feed" id="ingestFeed"></div>
+              <div class="foot">
+                <span>Newest 4s ago · same merge path as the desktop pane</span>
+                <div class="w-actions">
+                  <button class="btn" data-toast="Opened plugin Overview tab">Open plugin tab</button>
+                  <button class="btn btn-white" data-toast="Opened full dashboard live feed">Full dashboard ↗</button>
+                </div>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <!-- MoA fan-out -->
+      <section class="stage" id="fanout" data-kind="desktop dash">
+        <div>
+          <div class="stage-label"><span>Carry · Fan Out → MoA</span><span>Desktop MoA · Live ops waterfall</span></div>
+          <article class="widget w-fan">
+            <header class="w-head">
+              <div class="w-id">
+                <div>
+                  <h3>MoA fan-out <span style="color:var(--muted);font-weight:500">/ one turn · sess 8f2c</span></h3>
+                </div>
+              </div>
+              <div class="w-actions">
+                <span class="chip chip-warn">14 delegate_task never returned</span>
+                <div class="seg" id="fanFilter" role="tablist" aria-label="Fan-out lens">
+                  <button class="is-on" data-fan-filter="all" aria-selected="true">All</button>
+                  <button data-fan-filter="proposer" aria-selected="false">Proposers</button>
+                  <button data-fan-filter="stuck" aria-selected="false">Stuck</button>
+                </div>
+              </div>
+            </header>
+            <div class="panel" style="position:relative;padding:0;overflow:visible">
+              <svg id="fanSvg" class="fan-svg" viewBox="0 0 520 280" role="img" aria-label="Radial fan-out of 190 MoA and subagent calls. Hover a line for call details."></svg>
+              <div class="tooltip" id="fanTip"></div>
+            </div>
+            <p class="fan-detail" id="fanDetail">Hover a ray — proposers, tools, and stuck <code>web_fetch</code> children</p>
+            <h3 style="margin:14px 0 6px;font-size:16px;letter-spacing:-0.03em">One aggregator turn became a hundred and ninety calls</h3>
+            <p class="sub">Proposers close in parallel. Fourteen <code>delegate_task</code> children sit on <code>web_fetch</code> and hold the aggregator open until the timeout fires</p>
+            <div class="kpi-row">
+              <div class="kpi"><b class="tabular">190</b><span>calls this turn</span></div>
+              <div class="kpi"><b class="tabular" style="color:var(--gold)">14</b><span>never returned</span></div>
+              <div class="kpi"><b class="tabular">62 s</b><span>aggregator held</span></div>
+            </div>
+            <div class="foot">
+              <span>Capping delegate_task fan-out at eight would end this turn in nine seconds</span>
+              <div class="w-actions">
+                <button class="btn" id="fanReplay">Replay turn</button>
+                <button class="btn btn-gold" data-toast="Noted: cap delegate_task at 8 (config, not this demo)">Cap fan-out</button>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <!-- Role router -->
+      <section class="stage" id="router" data-kind="plugin desktop dash">
+        <div>
+          <div class="stage-label"><span>Carry · Model Router → DSv4 lanes</span><span>Plugin Routing · desktop Roles</span></div>
+          <article class="widget w-router">
+            <header class="w-head">
+              <div class="w-id">
+                <div>
+                  <h3>Role router <span style="color:var(--muted);font-weight:500">/ DSv4 traffic split · live</span></h3>
+                </div>
+              </div>
+              <div class="w-actions">
+                <span class="chip chip-warn">Pro share climbing</span>
+                <button class="btn btn-icon" aria-label="More">···</button>
+              </div>
+            </header>
+            <div class="panel grid-bg" style="position:relative">
+              <div style="display:flex;justify-content:space-between;align-items:flex-start">
+                <div>
+                  <div class="metric-xl tabular" style="font-size:26px">184</div>
+                  <div class="sub">requests / hour</div>
+                </div>
+                <div class="sub" style="color:var(--gold)">pro share ↑ 3× this hour</div>
+              </div>
+              <svg id="sankey" class="chart chart-host" style="height:168px" viewBox="0 0 520 168" aria-label="DSv4 traffic split sankey"></svg>
+              <div class="tooltip" id="sankeyTip"></div>
+            </div>
+            <div class="legend" style="margin:10px 0 0">
+              <span><i class="swatch" style="background:#5a5a5a"></i>flash</span>
+              <span><i class="swatch" style="background:#6a6a6a"></i>local</span>
+              <span><i class="swatch" style="background:#7a7a7a"></i>nvidia</span>
+              <span><i class="swatch" style="background:var(--gold)"></i>pro (escalation)</span>
+              <span style="margin-left:auto">router v3 · 1h window</span>
+            </div>
+            <div class="kpi-row">
+              <div class="kpi"><b class="tabular" style="color:var(--gold)">6%</b><span>landed on pro</span></div>
+              <div class="kpi"><b class="tabular">$0.0031</b><span>blended cost per call</span></div>
+              <div class="kpi"><b class="tabular">−18%</b><span>cost vs pinning pro</span></div>
+            </div>
+            <div class="foot">
+              <span>Pro is answering what flash should — flash-first is not holding</span>
+              <div class="w-actions">
+                <button class="btn" data-toast="Opened /router-view usage_1h">Role log</button>
+                <button class="btn btn-gold" data-toast="Reload is gated by MODEL_ROUTER_ALLOW_WRITE">Reload config</button>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <!-- Request volume -->
+      <section class="stage" id="runs" data-kind="plugin desktop dash">
+        <div>
+          <div class="stage-label"><span>Carry · Runs → request volume</span><span>Overview tiles · desktop sparkline</span></div>
+          <article class="widget w-runs">
+            <header class="w-head">
+              <div class="w-id">
+                <span class="w-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 14c3-8 6 8 9 0s6 8 7 0"/></svg></span>
+                <div>
+                  <h3>Requests</h3>
+                  <p>Last 24 hours · hourly · mbp + mini + winpc</p>
+                </div>
+              </div>
+              <div class="w-actions">
+                <span class="legend"><span><i class="hatch-swatch"></i>Ok</span><span><i class="swatch" style="background:var(--mint)"></i>Errors</span></span>
+                <div class="seg" id="runsRange">
+                  <button class="is-on" data-range="24h">24h</button>
+                  <button data-range="7d">7d</button>
+                  <button data-range="30d">30d</button>
+                </div>
+              </div>
+            </header>
+            <div class="panel grid-bg" style="position:relative">
+              <svg id="runsChart" class="chart chart-lg" viewBox="0 0 680 240" aria-label="Hourly ok vs error requests"></svg>
+              <div class="tooltip" id="runsTip"></div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <!-- Alerts + heatmap -->
+      <section class="stage" id="alerts" data-kind="plugin dash">
+        <div>
+          <div class="stage-label"><span>Carry · Alerts → health rules</span><span>Findings mute + duration heatmap</span></div>
+          <div class="pair">
+            <article class="widget w-alert">
+              <header class="w-head">
+                <div class="w-id">
+                  <span class="w-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3 3 20h18L12 3z"/><path d="M12 9v5M12 17h.01"/></svg></span>
+                  <div>
+                    <h3>Health rules</h3>
+                    <p>6 rules · 1 firing · 2 muted</p>
+                  </div>
+                </div>
+              </header>
+              <div id="alertRules" class="chart-host" style="position:relative"></div>
+              <div class="tooltip" id="alertTip"></div>
+            </article>
+            <article class="widget w-heat">
+              <header class="w-head">
+                <div class="w-id">
+                  <span class="w-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="4" width="6" height="6"/><rect x="14" y="4" width="6" height="6"/><rect x="4" y="14" width="6" height="6"/><rect x="14" y="14" width="6" height="6"/></svg></span>
+                  <div>
+                    <h3>Duration by hour</h3>
+                    <p>p50 · 7 days × 24 h · all hosts</p>
+                  </div>
+                </div>
+              </header>
+              <div class="panel" style="position:relative">
+                <div class="metric-xl tabular" style="font-size:28px">1.42s <span style="font-size:12px;color:var(--mint);font-weight:500">p95 3.8s · worst Thu 15:00</span></div>
+                <div id="heatmap" class="heat chart-host" style="margin-top:12px" aria-label="Duration heatmap"></div>
+                <div class="tooltip" id="heatTip"></div>
+                <div class="heat-legend">
+                  <span>0.6 s</span><div class="heat-scale"></div><span>3.8 s</span>
+                  <span style="margin-left:auto"><i class="swatch" style="background:#fff;width:8px;height:8px"></i>worst</span>
+                </div>
+                <div class="kpi-row" style="border-top:0;margin-top:8px">
+                  <div class="kpi"><b class="tabular">1.9 s</b><span>Business hours</span></div>
+                  <div class="kpi"><b class="tabular">0.8 s</b><span>Off-hours</span></div>
+                  <div class="kpi"><b class="tabular">0.7 s</b><span>Weekend</span></div>
+                </div>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <!-- Duration ceiling -->
+      <section class="stage" id="timeout" data-kind="dash">
+        <div>
+          <div class="stage-label"><span>Carry · Timeout → duration_s</span><span>Full dashboard · advisory only</span></div>
+          <article class="widget w-timeout">
+            <header class="w-head">
+              <div class="w-id">
+                <div>
+                  <h3>Duration ceiling <span style="color:var(--muted);font-weight:500">/ api requests · all hosts</span></h3>
+                </div>
+              </div>
+              <div class="w-actions">
+                <span class="chip chip-warn" id="cutChip">20 s · 3.1% would cut</span>
+                <button class="btn btn-icon" aria-label="More">···</button>
+              </div>
+            </header>
+            <div class="panel" style="position:relative">
+              <div class="sub" style="display:flex;justify-content:space-between"><span>How long requests actually take</span><span>last 7 d · 48K api records</span></div>
+              <svg id="hist" class="chart chart-host" style="height:110px" viewBox="0 0 520 110" aria-label="Request duration histogram"></svg>
+              <div class="tooltip" id="histTip"></div>
+            </div>
+            <div style="margin:14px 0 8px;display:flex;justify-content:space-between" class="sub">
+              <span>Drag to preview a timeout</span><span>no write path in the plugin yet — this is a what-if</span>
+            </div>
+            <div class="ceiling">
+              <div class="ticks" aria-hidden="true"></div>
+              <div class="knob" id="ceilKnob"></div>
+              <input type="range" min="4" max="60" value="20" id="ceilRange" aria-label="Duration ceiling in seconds" />
+            </div>
+            <div class="sub" style="display:flex;justify-content:space-between;margin-top:6px"><span>0 s</span><span id="ceilLabel">20 s</span><span>60 s</span></div>
+            <div class="foot" style="border-top:1px solid var(--line);padding-top:12px;margin-top:12px">
+              <div>
+                <div style="color:var(--text)">Longer ceiling for fetch tools</div>
+                <div class="sub">web_fetch and execute_code get 2× the limit</div>
+              </div>
+              <button class="toggle toggle-mint is-on" id="searchToggle" aria-pressed="true" aria-label="Longer ceiling for fetch tools"><i></i></button>
+            </div>
+            <div class="kpi-row">
+              <div class="kpi"><b class="tabular" id="cutPct" style="color:var(--gold)">3.1%</b><span>requests would cut</span></div>
+              <div class="kpi"><b class="tabular">p95 · 8.4 s</b><span>well under the line</span></div>
+              <div class="kpi"><b class="tabular" id="savedHrs">41 h</b><span>stuck MoA waits / week</span></div>
+            </div>
+            <div class="foot">
+              <span>Past 20 seconds almost nothing ever came back</span>
+              <div class="w-actions">
+                <button class="btn" id="showCut" data-toast="Showing 3.1% of requests past the ceiling">Show the 3.1%</button>
+                <button class="btn btn-gold" id="setCeil">Preview 20 s</button>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <!-- Context + H2H -->
+      <section class="stage" id="context" data-kind="desktop dash">
+        <div>
+          <div class="stage-label"><span>Carry · Context → KV pool</span><span>Memory workspace · DSv4 H2H</span></div>
+          <div class="pair">
+            <article class="widget w-context">
+              <header class="w-head">
+                <div class="w-id">
+                  <span class="w-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg></span>
+                  <div>
+                    <h3>Context window</h3>
+                    <p>dialectic · flash · live session</p>
+                  </div>
+                </div>
+              </header>
+              <div class="metric-xl tabular" style="font-size:26px">91,240 / 128k <span style="font-size:12px;color:var(--mint)">71% used</span></div>
+              <div class="gauge-wrap">
+                <svg id="gauge" class="chart-host" viewBox="0 0 280 150" aria-label="Context window gauge 71 percent"></svg>
+                <div class="gauge-label"><b>71%</b><span class="sub">of 128,000 tokens</span></div>
+                <div class="tooltip" id="gaugeTip"></div>
+              </div>
+              <div class="stat-list chart-host" id="ctxParts" style="position:relative"></div>
+              <div class="tooltip" id="ctxTip"></div>
+            </article>
+            <article class="widget w-h2h">
+              <header class="w-head">
+                <div class="w-id">
+                  <span class="w-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 12h6l2-6 4 12 2-6h2"/></svg></span>
+                  <div>
+                    <h3>Flash vs pro</h3>
+                    <p>last 480 DSv4 turns · quality proxy</p>
+                  </div>
+                </div>
+              </header>
+              <div class="metric-xl" style="font-size:26px">61% flash holds <span class="chip chip-mint">+4.2 pts</span></div>
+              <div class="win-track" aria-hidden="true">
+                <div class="win" style="width:61%"></div>
+                <div class="tie" style="width:22%"></div>
+                <div class="loss" style="width:17%"></div>
+              </div>
+              <div class="legend">
+                <span><i class="swatch" style="background:var(--mint)"></i>flash ok 293</span>
+                <span><i class="swatch" style="background:#6b6b6b"></i>tie 106</span>
+                <span><i class="swatch" style="background:#3a3a3a"></i>needed pro 81</span>
+              </div>
+              <div class="sub" style="display:flex;justify-content:space-between;margin:10px 0 4px"><span>Per-turn duration delta (flash − pro)</span><span>mean −0.4 s</span></div>
+              <div class="panel grid-bg" style="position:relative;padding:8px">
+                <svg id="deltaDots" class="chart" style="height:120px" viewBox="0 0 360 120" aria-label="Per-turn duration delta scatter"></svg>
+                <div class="tooltip" id="deltaTip"></div>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <!-- Tool graph -->
+      <section class="stage" id="graph" data-kind="dash">
+        <div>
+          <div class="stage-label"><span>Carry · Tool graph → candidate</span><span>Needs tool spans; mock from Hermes names</span></div>
+          <article class="widget w-graph">
+            <header class="w-head">
+              <div class="w-id">
+                <span class="w-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="6" cy="12" r="2"/><circle cx="18" cy="6" r="2"/><circle cx="18" cy="18" r="2"/><path d="M8 12h4m4-6-4 6 4 6"/></svg></span>
+                <div>
+                  <h3>Tool / subagent graph</h3>
+                  <p>dialectic · last 24 h · 12,480 calls</p>
+                </div>
+              </div>
+              <div class="seg" id="graphTabs" role="tablist" aria-label="Graph weighting">
+                <button class="is-on" data-graph-tab="calls" aria-selected="true">Calls</button>
+                <button data-graph-tab="latency" aria-selected="false">Latency</button>
+                <button data-graph-tab="errors" aria-selected="false">Errors</button>
+              </div>
+            </header>
+            <div class="panel grid-bg graph-wrap chart-host" id="graphPanel">
+              <svg id="graphSvg" class="chart-host" width="100%" height="280" viewBox="0 0 680 280" aria-label="Agent to tool call graph"></svg>
+              <div class="tooltip" id="graphTip"></div>
+            </div>
+            <div class="kpi-row four">
+              <div class="kpi"><b>63%</b><span>Tool share of latency</span></div>
+              <div class="kpi"><b class="tabular">218 · 1.7%</b><span>Retries</span></div>
+              <div class="kpi"><b style="color:var(--mint);font-size:14px">execute_code → web_fetch</b><span>Hot path</span></div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <!-- Cost + errors -->
+      <section class="stage" id="cost" data-kind="dash">
+        <div>
+          <div class="stage-label"><span>Carry · Cost → cost_usd</span><span>Overview · not yet on the plugin tab</span></div>
+          <div class="pair">
+            <article class="widget w-cost">
+              <header class="w-head">
+                <div class="w-id">
+                  <span class="w-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 18V8M10 18V4M16 18v-6M22 18V10"/></svg></span>
+                  <div>
+                    <h3>Estimated cost</h3>
+                    <p>7 days · session <code>cost_usd</code></p>
+                  </div>
+                </div>
+              </header>
+              <div class="metric-xl tabular">$18.40 <span style="font-size:12px;color:var(--mint)">Sat cloud spike</span></div>
+              <div class="legend" style="margin:8px 0">
+                <span><i class="swatch" style="background:#6a6a6a"></i>flash / local</span>
+                <span><i class="hatch-swatch"></i>nvidia</span>
+                <span><i class="swatch" style="background:#3a3a3a"></i>pro</span>
+              </div>
+              <div class="chart-host" style="position:relative">
+                <svg id="costChart" class="chart" style="height:160px" viewBox="0 0 320 160" aria-label="Weekly cost stacked by lane"></svg>
+                <div class="tooltip" id="costTip"></div>
+              </div>
+            </article>
+            <article class="widget w-cost">
+              <header class="w-head">
+                <div class="w-id">
+                  <span class="w-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 14c3-8 6 8 9 0s6 8 7 0"/></svg></span>
+                  <div>
+                    <h3>Error rate</h3>
+                    <p>api_request_error · last 80 min</p>
+                  </div>
+                </div>
+              </header>
+              <div class="metric-xl tabular">1.7% <span class="chip chip-red">alert &gt; 2%</span></div>
+              <div class="chart-host" style="position:relative">
+                <svg id="errorChart" class="chart" style="height:160px" viewBox="0 0 360 150" aria-label="Error rate step chart"></svg>
+                <div class="tooltip" id="errTip"></div>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <p class="skip-note">Skipped from Widget Lab: Deployments (no prompt-eval versions), Media controls, Views by language, Playback + speaker. Those are dubbing / eval-platform frames, not LLM-ops telemetry.</p>
+    </main>
+  </div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="widget-lab-hermes.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.7/dist/gsap.min.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.7/dist/ScrollTrigger.min.js" crossorigin="anonymous"></script>
+  <script src="demo-widget-lab.js"></script>
+</body>
+</html>

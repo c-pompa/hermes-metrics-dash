@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>ai.hermes.metricsdash</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/usr/bin/python3</string>
+    <!-- replace &lt;user&gt; with the real home (sed "s|<user>|$USER|") -->
+    <string>/Users/&lt;user&gt;/hermes-metrics-dash/app.py</string>
+  </array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>METRICS_PORT</key><string>8899</string>
+    <!-- add a Tailscale/VPN address to serve other hosts, e.g. 127.0.0.1,100.x.y.z -->
+    <key>METRICS_BIND</key><string>127.0.0.1</string>
+  </dict>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><true/>
+  <key>ThrottleInterval</key><integer>10</integer>
+  <key>StandardOutPath</key><string>/Users/&lt;user&gt;/.hermes/logs/metricsdash.log</string>
+  <key>StandardErrorPath</key><string>/Users/&lt;user&gt;/.hermes/logs/metricsdash.err.log</string>
+</dict>
+</plist>

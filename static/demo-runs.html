@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>runs-v1 lab — request volume vs errors</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="widget-lab.css" />
+</head>
+<body class="lab-runs">
+  <div class="app">
+    <aside class="rail" aria-label="runs-v1 lab">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 14c3-8 6 8 9 0s6 8 7 0"/></svg>
+        </div>
+        <div>
+          <h1>runs-v1</h1>
+          <p>lab · not on Overview yet</p>
+        </div>
+      </div>
+      <nav class="nav">
+        <a class="is-active" href="/static/demo-runs.html#/range=6h" data-tone="mint"><span class="dot"></span>Request volume</a>
+        <a href="/#/range=6h" id="navLive"><span class="dot"></span>Live Overview</a>
+        <a href="/static/demo-fan.html#/range=6h"><span class="dot"></span>fan-v1</a>
+        <a href="/static/demo-usable.html#runs"><span class="dot"></span>Usable widgets</a>
+        <a href="/static/demo-widget-lab.html#runs"><span class="dot"></span>Original mocks</a>
+      </nav>
+      <div class="rail-note">
+        Isolated lab page. Same live <code>/api/recent</code> and hash filters as Overview (<code>#/range=6h</code>). Does not patch <code>index.html</code> or Classic. Process: <code>docs/LAB-THEN-PATCH.md</code>.
+        <br /><br />
+        <a href="/" style="color:var(--mint)">← Live dashboard</a>
+      </div>
+    </aside>
+
+    <main class="gallery">
+      <header class="hero">
+        <div>
+          <h2>Request volume vs errors</h2>
+          <p>Widget Lab stacked bars on live records. Prove the grain, host filter, and hover tips here, then patch Overview. Classic stays frozen.</p>
+        </div>
+        <div class="filters" role="group" aria-label="Time range">
+          <button class="filter" data-range="1h">1h</button>
+          <button class="filter is-on" data-range="6h">6h</button>
+          <button class="filter" data-range="12h">12h</button>
+          <button class="filter" data-range="24h">24h</button>
+          <button class="filter" data-range="7d">7d</button>
+          <button class="filter" data-range="today">today</button>
+          <button class="filter" data-range="yesterday">yesterday</button>
+        </div>
+      </header>
+
+      <div class="lab-flow" aria-label="Lab then patch">
+        <div class="lab-flow-step">
+          <b>1. Live API</b>
+          <span><code>/api/recent</code> · same exclude as Overview</span>
+        </div>
+        <span class="lab-flow-arrow" aria-hidden="true">→</span>
+        <div class="lab-flow-step is-here">
+          <b>2. This lab</b>
+          <span>runs-v1 · hash <code>#/range=6h</code></span>
+        </div>
+        <span class="lab-flow-arrow" aria-hidden="true">→</span>
+        <div class="lab-flow-step">
+          <b>3. Patch Overview</b>
+          <span>only after KPIs match · Classic frozen</span>
+        </div>
+      </div>
+
+      <section class="stage" id="runs" data-kind="dash ready">
+        <div>
+          <div class="stage-label">
+            <span>Runs → request volume</span>
+            <span><span class="status status-ready">Lab</span> live <code>/api</code> · Overview not patched</span>
+          </div>
+          <article class="widget w-runs">
+            <header class="w-head">
+              <div class="w-id">
+                <span class="w-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 14h4v6H4zM10 8h4v12h-4zM16 4h4v16h-4z"/></svg></span>
+                <div>
+                  <h3>Requests</h3>
+                  <p id="runsSub">Loading live window…</p>
+                </div>
+              </div>
+              <div class="w-actions">
+                <span class="legend"><span><i class="hatch-swatch"></i>Ok</span><span><i class="swatch" style="background:var(--mint)"></i>Errors</span></span>
+                <div class="seg" id="hostSeg" role="group" aria-label="Host">
+                  <button class="is-on" data-host="" aria-pressed="true">all</button>
+                  <button data-host="mbp" aria-pressed="false">mbp</button>
+                  <button data-host="mini" aria-pressed="false">mini</button>
+                </div>
+              </div>
+            </header>
+            <div class="kpi-row four" id="runsKpis">
+              <div class="kpi"><b class="tabular" id="kpiReq">—</b><span>requests</span></div>
+              <div class="kpi"><b class="tabular" id="kpiOk">—</b><span>ok (api + moa)</span></div>
+              <div class="kpi"><b class="tabular" id="kpiErr">—</b><span>errors</span></div>
+              <div class="kpi"><b class="tabular" id="kpiRate">—</b><span>error rate</span></div>
+            </div>
+            <div class="panel grid-bg" style="position:relative;margin-top:12px">
+              <svg id="runsChart" class="chart chart-lg" viewBox="0 0 680 240" aria-label="Ok vs error requests in the selected window"></svg>
+              <div class="tooltip" id="runsTip"></div>
+            </div>
+            <div class="foot">
+              <span id="runsFoot">Fetching /api/recent…</span>
+              <div class="w-actions">
+                <a class="btn" id="openOverview" href="/#/range=6h">Open live Overview</a>
+                <span class="chip chip-mint" id="liveChip"><span class="live-dot"></span> live · :8899</span>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+    </main>
+  </div>
+  <div id="toast" class="toast" hidden></div>
+  <script src="runs-lab.js"></script>
+  <script src="demo-runs.js"></script>
+</body>
+</html>

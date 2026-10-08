@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hermes Metrics — clean demo</title>
+<style>
+  :root {
+    --bg: #f7f7f4; --card: #ffffff; --edge: #e7e6e0; --edge2: #efeee8;
+    --ink: #1c1c1a; --dim: #82806f; --faint: #b5b3a6;
+    --a1: #4f7cf0; --a2: #12b5a5; --a3: #f0a04f; --bad: #e05c5c;
+    --radius: 12px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #141412; --card: #1d1d1a; --edge: #2c2c27; --edge2: #262622;
+      --ink: #f0efe9; --dim: #9c9a8c; --faint: #5c5a50;
+      --a1: #7b9bf5; --a2: #2dd4c3; --a3: #f5b567; --bad: #ef7070;
+    }
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body { background: var(--bg); color: var(--ink); font: 13px/1.5 -apple-system, system-ui, sans-serif; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 20px 22px 48px; }
+  .num { font-variant-numeric: tabular-nums; }
+
+  header { display: flex; align-items: baseline; gap: 12px; margin-bottom: 18px; flex-wrap: wrap; }
+  header h1 { font-size: 16px; font-weight: 650; letter-spacing: -.01em; }
+  .badge { font-size: 11px; color: var(--dim); border: 1px solid var(--edge); border-radius: 999px;
+    padding: 3px 10px; background: var(--card); }
+  .badge b { color: var(--a2); font-weight: 600; }
+  header .right { margin-left: auto; font-size: 11px; color: var(--dim); }
+
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 12px; }
+  @media (max-width: 900px) { .kpis { grid-template-columns: repeat(2, 1fr); } }
+  .card { background: var(--card); border: 1px solid var(--edge); border-radius: var(--radius);
+    box-shadow: 0 1px 2px rgba(0,0,0,.03); }
+  .kpi { padding: 12px 14px 8px; }
+  .kpi .k { font-size: 11px; color: var(--dim); margin-bottom: 2px; }
+  .kpi .v { font-size: 24px; font-weight: 650; letter-spacing: -.02em; }
+  .kpi .v small { font-size: 12px; color: var(--dim); font-weight: 500; }
+  .kpi canvas { width: 100%; height: 34px; display: block; margin-top: 4px; cursor: crosshair; }
+
+  .main { padding: 14px 16px 10px; margin-bottom: 12px; }
+  .main .head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; }
+  .main .head h2 { font-size: 13px; font-weight: 650; }
+  .legend { display: flex; gap: 6px; }
+  .legend button { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: var(--dim);
+    border: 1px solid var(--edge); background: var(--card); border-radius: 999px; padding: 3px 9px; cursor: pointer;
+    transition: all .15s; }
+  .legend button:hover { border-color: var(--faint); }
+  .legend button.off { opacity: .4; }
+  .legend .sw { width: 8px; height: 8px; border-radius: 2px; }
+  .reset { margin-left: auto; font-size: 11px; color: var(--a1); border: 0; background: none; cursor: pointer;
+    padding: 3px 6px; border-radius: 6px; visibility: hidden; }
+  .reset.show { visibility: visible; }
+  .reset:hover { background: var(--edge2); }
+  #mainchart { width: 100%; height: 220px; display: block; cursor: crosshair; }
+  #brushhint { font-size: 10px; color: var(--faint); margin-top: 4px; }
+
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 12px; }
+  @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+  .mini { padding: 12px 14px 10px; }
+  .mini .head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
+  .mini h3 { font-size: 12px; font-weight: 600; }
+  .mini .val { font-size: 12px; color: var(--dim); }
+  .mini .val b { color: var(--ink); }
+  .mini canvas { width: 100%; height: 54px; display: block; cursor: crosshair; }
+  .mini .foot { font-size: 10px; color: var(--faint); margin-top: 4px; }
+
+  .feedcard { padding: 6px 0 4px; }
+  .feedcard .head { display: flex; align-items: baseline; gap: 10px; padding: 8px 16px 10px; }
+  .feedcard h2 { font-size: 13px; font-weight: 650; }
+  .feedcard .head span { font-size: 11px; color: var(--dim); }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th { text-align: left; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em;
+    color: var(--dim); padding: 6px 16px 6px; border-top: 1px solid var(--edge2); }
+  td { padding: 7px 16px; border-top: 1px solid var(--edge2); }
+  tbody tr { cursor: default; transition: background .12s; }
+  tbody tr:hover, tbody tr.hl { background: var(--edge2); }
+  .host { font-size: 10px; font-weight: 650; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--edge); color: var(--dim); }
+  .host.mini { color: var(--a1); border-color: color-mix(in srgb, var(--a1) 35%, var(--edge)); }
+  .host.mbp { color: var(--a2); border-color: color-mix(in srgb, var(--a2) 35%, var(--edge)); }
+  .host.cloud { color: var(--a3); border-style: dashed; }
+  .host.err { color: var(--bad); }
+  .model { font-family: ui-monospace, Menlo, monospace; font-size: 11px; }
+  .tpscell { display: flex; align-items: center; gap: 8px; }
+  .tpsbar { height: 4px; border-radius: 2px; background: var(--a1); opacity: .75; min-width: 2px; }
+  .trunc { font-size: 10px; color: var(--a3); font-weight: 600; }
+
+  footer { font-size: 10px; color: var(--faint); display: flex; gap: 16px; margin-top: 14px; flex-wrap: wrap; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>Hermes Metrics</h1>
+    <span class="badge">env <b>single-model</b></span>
+    <span class="badge">3 hosts · 7 models</span>
+    <span class="right">2026-07-19 · live demo with static data</span>
+  </header>
+
+  <div class="kpis" id="kpis"></div>
+
+  <div class="card main">
+    <div class="head">
+      <h2>Throughput</h2>
+      <div class="legend" id="legend"></div>
+      <button class="reset" id="resetzoom">reset zoom</button>
+    </div>
+    <canvas id="mainchart"></canvas>
+    <div id="brushhint">drag to zoom · hover for values · click legend to toggle series</div>
+  </div>
+
+  <div class="grid" id="minis"></div>
+
+  <div class="card feedcard">
+    <div class="head"><h2>Requests</h2><span>hover a row to isolate its series above</span></div>
+    <table>
+      <thead><tr><th>Time</th><th>Host</th><th>Model</th><th>t/s</th><th>Duration</th><th>Cost</th></tr></thead>
+      <tbody id="feed"></tbody>
+    </table>
+  </div>
+
+  <footer>
+    <span>dash c01a299</span><span>db 41 MB · 155,023 records</span><span>retention 30d / 48h heartbeats</span><span>sse connected</span>
+  </footer>
+</div>
+
+<script>
+// ---------------- data ----------------
+const HOURS = [...Array(24)].map((_,i) => i);
+const SERIES = [
+  { key:"gemma", name:"supergemma4-26b", color:"var(--a2)", rgb:"18,181,165",
+    data:[14,16,15,17,16,18,17,16,15,16,17,19,18,16,17,16,15,16,18,17,16,15,14,16] },
+  { key:"qwen", name:"qwen3.6-35b-distill", color:"var(--a1)", rgb:"79,124,240",
+    data:[22,24,21,23,45,22,20,21,22,23,24,22,21,22,23,21,22,24,23,22,21,22,23,22] },
+];
+const FEED = [
+  ["12:06:11","mbp","supergemma4-26b",18.2,9.1,"$0.003","gemma"],
+  ["11:58:44","mbp","supergemma4-26b",16.9,12.4,"$0.004","gemma",true],
+  ["11:52:03","mini","qwen3.6-35b-distill",45.4,2.2,"$0.001","qwen"],
+  ["11:41:37","cloud","kimi-k2-thinking",null,31.0,"$0.011",null],
+  ["11:36:20","mbp","supergemma4-26b",15.8,14.9,"$0.005","gemma"],
+  ["11:22:08","mbp","supergemma4-26b",null,0.4,"err ×3",null],
+];
+const CPU = { mini:[1.4,1.2,1.3,1.1,1.2,1.4,1.5,1.2,1.1,1.2,1.3,1.2,1.1,1.2,1.3,1.4,1.2,1.1,1.2,1.2,1.3,1.2,1.1,1.2],
+              mbp:[0.7,0.8,0.9,0.8,0.7,0.8,0.9,1.0,0.8,0.7,0.8,0.9,0.8,0.8,0.9,0.8,0.7,0.8,0.9,0.8,0.8,0.7,0.8,0.8] };
+const RAM = { mini:[20.8,20.9,21.0,21.1,21.0,21.2,21.3,21.2,21.4,21.4,21.3,21.4,21.5,21.4,21.3,21.4,21.4,21.5,21.4,21.4,21.3,21.4,21.4,21.4],
+              mbp:[16.8,16.9,17.0,16.9,17.0,17.1,17.0,17.1,17.1,17.0,17.1,17.1,17.0,17.1,17.1,17.0,17.1,17.1,17.0,17.1,17.1,17.1,17.0,17.1] };
+const VOL = [0,0,0,0,0,0,1,0,0,2,4,7,12,18,24,31,18,12,7,4,2,1,0,0];
+
+// ---------------- tiny helpers ----------------
+const cssVar = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+function setupCanvas(cv){
+  const d = Math.min(devicePixelRatio,2), r = cv.getBoundingClientRect();
+  cv.width = r.width*d; cv.height = r.height*d;
+  const ctx = cv.getContext("2d"); ctx.setTransform(d,0,0,d,0,0);
+  return [ctx, r.width, r.height];
+}
+
+// ---------------- sparkline (reusable, interactive) ----------------
+function sparkline(cv, data, rgb, opts={}){
+  const [ctx,w,h] = setupCanvas(cv);
+  const min = opts.min ?? Math.min(...data), max = Math.max(...data);
+  const pad = 3, span = (max-min)||1;
+  const pts = data.map((v,i) => [pad + i*(w-2*pad)/(data.length-1), h-pad - (v-min)/span*(h-2*pad)]);
+  let hover = -1;
+  function draw(){
+    ctx.clearRect(0,0,w,h);
+    if (opts.median != null){
+      const y = h-pad - (opts.median-min)/span*(h-2*pad);
+      ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(w,y);
+      ctx.strokeStyle = "rgba(130,128,111,.35)"; ctx.setLineDash([3,3]); ctx.stroke(); ctx.setLineDash([]);
+    }
+    ctx.beginPath();
+    pts.forEach(([x,y],i) => i?ctx.lineTo(x,y):ctx.moveTo(x,y));
+    ctx.strokeStyle = `rgba(${rgb},.9)`; ctx.lineWidth = 1.5; ctx.stroke();
+    if (opts.fill !== false){
+      ctx.lineTo(pts[pts.length-1][0], h); ctx.lineTo(pts[0][0], h); ctx.closePath();
+      ctx.fillStyle = `rgba(${rgb},.10)`; ctx.fill();
+    }
+    if (hover >= 0){
+      const [x,y] = pts[hover];
+      ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,h);
+      ctx.strokeStyle = "rgba(130,128,111,.3)"; ctx.lineWidth = 1; ctx.stroke();
+      ctx.beginPath(); ctx.arc(x,y,3,0,7); ctx.fillStyle = `rgba(${rgb},1)`; ctx.fill();
+      ctx.fillStyle = cssVar("--ink"); ctx.font = "600 10px system-ui";
+      ctx.textAlign = hover > data.length*.7 ? "right" : "left";
+      ctx.fillText(opts.fmt ? opts.fmt(data[hover]) : data[hover], x + (hover > data.length*.7 ? -6 : 6), Math.max(10, y-6));
+    }
+  }
+  cv.addEventListener("pointermove", e => {
+    const r = cv.getBoundingClientRect();
+    hover = Math.max(0, Math.min(data.length-1, Math.round((e.clientX-r.left)/r.width*(data.length-1))));
+    draw();
+  });
+  cv.addEventListener("pointerleave", () => { hover = -1; draw(); });
+  draw();
+}
+
+// ---------------- KPI tiles ----------------
+const KPIS = [
+  { k:"Requests · 24h", v:"135", sub:"12 sessions", data:VOL, rgb:"79,124,240", fmt:v=>v+" req/h" },
+  { k:"Median t/s", v:"16.5", sub:"max 45.4", data:SERIES[0].data, rgb:"18,181,165", fmt:v=>v+" t/s", median:16.5 },
+  { k:"Cache hit rate", v:"66%", sub:"prompt reads saved", data:[58,60,62,61,63,64,62,65,66,64,65,66,67,66,66,67,66,65,66,66,67,66,66,66], rgb:"240,160,79", fmt:v=>v+"%" },
+  { k:"Cost · 24h", v:"$0.42", sub:"99.3% local at $0", data:[0.02,0.03,0.05,0.06,0.08,0.09,0.11,0.14,0.16,0.19,0.22,0.24,0.27,0.30,0.33,0.35,0.37,0.38,0.40,0.41,0.42,0.42,0.42,0.42], rgb:"240,160,79", fmt:v=>"$"+v.toFixed(2) },
+];
+KPIS.forEach(cfg => {
+  const d = document.createElement("div"); d.className = "card kpi";
+  d.innerHTML = `<div class="k">${cfg.k}</div><div class="v num">${cfg.v} <small>${cfg.sub}</small></div><canvas style="height:34px"></canvas>`;
+  document.getElementById("kpis").appendChild(d);
+  sparkline(d.querySelector("canvas"), cfg.data, cfg.rgb, cfg);
+});
+
+// ---------------- main chart: crosshair + brush zoom + toggles ----------------
+const mc = document.getElementById("mainchart");
+const state = { hidden:new Set(), domain:[0,23], hover:-1, brush:null, highlight:null };
+SERIES.forEach(s => {
+  const b = document.createElement("button");
+  b.innerHTML = `<span class="sw" style="background:${s.color}"></span>${s.name}`;
+  b.onclick = () => { state.hidden.has(s.key) ? state.hidden.delete(s.key) : state.hidden.add(s.key);
+    b.classList.toggle("off"); drawMain(); };
+  document.getElementById("legend").appendChild(b);
+});
+function visible(){ return SERIES.filter(s => !state.hidden.has(s.key)); }
+function domainMax(){
+  let m = 1;
+  visible().forEach(s => { for (let i=state.domain[0]; i<=state.domain[1]; i++) m = Math.max(m, s.data[i]); });
+  return m*1.15;
+}
+function drawMain(){
+  const [ctx,w,h] = setupCanvas(mc);
+  const padL = 34, padR = 8, padT = 10, padB = 18;
+  const [d0,d1] = state.domain, ymax = domainMax();
+  const X = i => padL + (i-d0)/(d1-d0)*(w-padL-padR);
+  const Y = v => h-padB - v/ymax*(h-padT-padB);
+  ctx.clearRect(0,0,w,h);
+  // grid + y labels
+  ctx.font = "10px system-ui"; ctx.fillStyle = cssVar("--faint"); ctx.textAlign = "right";
+  for (let g=0; g<=4; g++){
+    const v = ymax*g/4, y = Y(v);
+    ctx.strokeStyle = cssVar("--edge2"); ctx.beginPath(); ctx.moveTo(padL,y); ctx.lineTo(w-padR,y); ctx.stroke();
+    ctx.fillText(Math.round(v), padL-6, y+3);
+  }
+  ctx.textAlign = "center";
+  for (let i=d0; i<=d1; i+=Math.max(1,Math.round((d1-d0)/8))) ctx.fillText(i+":00", X(i), h-4);
+  // series
+  visible().forEach(s => {
+    const dim = state.highlight && state.highlight !== s.key;
+    ctx.globalAlpha = dim ? .15 : 1;
+    ctx.beginPath();
+    for (let i=d0;i<=d1;i++) i===d0?ctx.moveTo(X(i),Y(s.data[i])):ctx.lineTo(X(i),Y(s.data[i]));
+    ctx.strokeStyle = s.color; ctx.lineWidth = 1.8; ctx.stroke();
+    // fill
+    ctx.lineTo(X(d1),h-padB); ctx.lineTo(X(d0),h-padB); ctx.closePath();
+    ctx.fillStyle = `rgba(${s.rgb},.07)`; ctx.fill();
+    ctx.globalAlpha = 1;
+  });
+  // crosshair
+  if (state.hover >= d0 && state.hover <= d1){
+    const x = X(state.hover);
+    ctx.beginPath(); ctx.moveTo(x,padT); ctx.lineTo(x,h-padB);
+    ctx.strokeStyle = cssVar("--faint"); ctx.setLineDash([3,3]); ctx.stroke(); ctx.setLineDash([]);
+    let ty = padT + 8;
+    visible().forEach(s => {
+      const y = Y(s.data[state.hover]);
+      ctx.beginPath(); ctx.arc(x,y,3.5,0,7); ctx.fillStyle = s.color; ctx.fill();
+      ctx.fillStyle = cssVar("--ink"); ctx.font = "600 10px system-ui"; ctx.textAlign = "left";
+      ctx.fillText(`${s.name} · ${s.data[state.hover]} t/s`, Math.min(x+8, w-150), ty); ty += 13;
+    });
+    ctx.fillStyle = cssVar("--dim"); ctx.textAlign = "center";
+    ctx.fillText(state.hover+":00", x, h-4);
+  }
+  // brush selection
+  if (state.brush){
+    const [a,b] = state.brush;
+    ctx.fillStyle = "rgba(79,124,240,.12)";
+    ctx.fillRect(Math.min(a,b), padT, Math.abs(b-a), h-padT-padB);
+    ctx.strokeStyle = "rgba(79,124,240,.5)"; ctx.strokeRect(Math.min(a,b), padT, Math.abs(b-a), h-padT-padB);
+  }
+}
+mc.addEventListener("pointermove", e => {
+  const r = mc.getBoundingClientRect();
+  const frac = (e.clientX-r.left-34)/(r.width-42);
+  const i = Math.round(state.domain[0] + frac*(state.domain[1]-state.domain[0]));
+  state.hover = Math.max(state.domain[0], Math.min(state.domain[1], i));
+  if (state.brushing){ state.brush[1] = e.clientX-r.left; }
+  drawMain();
+});
+mc.addEventListener("pointerleave", () => { state.hover = -1; drawMain(); });
+mc.addEventListener("pointerdown", e => {
+  const r = mc.getBoundingClientRect();
+  state.brushing = true; state.brush = [e.clientX-r.left, e.clientX-r.left];
+  mc.setPointerCapture(e.pointerId);
+});
+mc.addEventListener("pointerup", e => {
+  if (!state.brushing) return;
+  state.brushing = false;
+  const r = mc.getBoundingClientRect(), padL = 34, padR = 8;
+  const toIdx = px => state.domain[0] + (px-padL)/(r.width-padL-padR)*(state.domain[1]-state.domain[0]);
+  let [a,b] = state.brush.map(toIdx);
+  state.brush = null;
+  if (Math.abs(b-a) >= 2){
+    state.domain = [Math.max(0,Math.round(Math.min(a,b))), Math.min(23,Math.round(Math.max(a,b)))];
+    document.getElementById("resetzoom").classList.add("show");
+  }
+  drawMain();
+});
+document.getElementById("resetzoom").onclick = () => {
+  state.domain = [0,23]; document.getElementById("resetzoom").classList.remove("show"); drawMain();
+};
+
+// ---------------- small multiples ----------------
+const MINIS = [
+  { t:"supergemma4-26b", val:'<b>16.5</b> med t/s', data:SERIES[0].data, rgb:"18,181,165", foot:"98 req · p50 12.4s · p95 31.0s · cache 62%", median:16.5, fmt:v=>v+" t/s" },
+  { t:"qwen3.6-35b-distill", val:'<b>22.4</b> med t/s', data:SERIES[1].data, rgb:"79,124,240", foot:"36 req · p50 2.2s · p95 9.8s · cache 71%", median:22.4, fmt:v=>v+" t/s" },
+  { t:"Requests / hour", val:'<b>135</b> total', data:VOL, rgb:"79,124,240", foot:"peak 31 at 15:00 · 12 sessions", bars:true, fmt:v=>v+" req" },
+  { t:"CPU load", val:'<b>1.2</b> mini · <b>0.8</b> mbp', multi:[["mini",CPU.mini,"79,124,240"],["mbp",CPU.mbp,"18,181,165"]], foot:"1-min load average, 24h" },
+  { t:"Memory pressure", val:'<b>67%</b> mini · <b>71%</b> mbp', multi:[["mini",RAM.mini,"79,124,240"],["mbp",RAM.mbp,"18,181,165"]], foot:"GB used, 24h — mini 32 GB · mbp 24 GB" },
+  { t:"Latency spread", val:'p50 / p95, seconds', latency:true, foot:"qwen 2.2/9.8 · gemma 12.4/31.0 · kimi 31.0/—" },
+];
+MINIS.forEach(cfg => {
+  const d = document.createElement("div"); d.className = "card mini";
+  d.innerHTML = `<div class="head"><h3>${cfg.t}</h3><div class="val num">${cfg.val}</div></div><canvas></canvas><div class="foot">${cfg.foot}</div>`;
+  document.getElementById("minis").appendChild(d);
+  const cv = d.querySelector("canvas");
+  if (cfg.multi){
+    sharedState.set(cv, cfg.multi);
+    drawShared(cv);
+    wireSharedHover(cv);
+  } else if (cfg.bars){
+    drawBars(cv, cfg);
+  } else if (cfg.latency){
+    drawLatency(cv);
+  } else {
+    sparkline(cv, cfg.data, cfg.rgb, cfg);
+  }
+});
+// multi-series sparkline on one canvas (two lines + joint hover)
+const sharedState = new Map();
+const sharedHover = new Map();
+function drawShared(cv){
+  const cfgs = sharedState.get(cv); if (!cfgs) return;
+  const [ctx,w,h] = setupCanvas(cv);
+  const hover = sharedHover.get(cv) ?? -1;
+  ctx.clearRect(0,0,w,h);
+  const all = cfgs.flatMap(([,data]) => data);
+  const min = Math.min(...all), max = Math.max(...all), span = (max-min)||1;
+  cfgs.forEach(([name,data,rgb]) => {
+    ctx.beginPath();
+    data.forEach((v,i) => { const x = 3+i*(w-6)/(data.length-1), y = h-3-(v-min)/span*(h-6);
+      i?ctx.lineTo(x,y):ctx.moveTo(x,y); });
+    ctx.strokeStyle = `rgba(${rgb},.9)`; ctx.lineWidth = 1.5; ctx.stroke();
+    if (hover >= 0){
+      const x = 3+hover*(w-6)/(data.length-1), y = h-3-(data[hover]-min)/span*(h-6);
+      ctx.beginPath(); ctx.arc(x,y,3,0,7); ctx.fillStyle = `rgba(${rgb},1)`; ctx.fill();
+    }
+  });
+  if (hover >= 0){
+    const x = 3+hover*(w-6)/(cfgs[0][1].length-1);
+    ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,h);
+    ctx.strokeStyle = "rgba(130,128,111,.3)"; ctx.stroke();
+    ctx.font = "600 10px system-ui"; ctx.textAlign = "left";
+    cfgs.forEach(([name,data,rgb],i) => {
+      ctx.fillStyle = `rgba(${rgb},1)`;
+      ctx.fillText(`${name} ${data[hover]}`, Math.min(x+6, w-90), 10+i*12);
+    });
+  }
+}
+function wireSharedHover(cv){
+  cv.addEventListener("pointermove", e => {
+    const r = cv.getBoundingClientRect();
+    const n = sharedState.get(cv)[0][1].length;
+    sharedHover.set(cv, Math.max(0, Math.min(n-1, Math.round((e.clientX-r.left)/r.width*(n-1)))));
+    drawShared(cv);
+  });
+  cv.addEventListener("pointerleave", () => { sharedHover.set(cv, -1); drawShared(cv); });
+}
+// bar chart
+function drawBars(cv, cfg){
+  const [ctx,w,h] = setupCanvas(cv);
+  const data = cfg.data, max = Math.max(...data);
+  const bw = (w-6)/data.length;
+  let hover = -1;
+  function draw(){
+    ctx.clearRect(0,0,w,h);
+    data.forEach((v,i) => {
+      const bh = v/max*(h-6);
+      ctx.fillStyle = i===hover ? "rgba(79,124,240,.95)" : "rgba(79,124,240,.45)";
+      ctx.beginPath(); ctx.roundRect(3+i*bw+1, h-3-bh, bw-2, bh, 2); ctx.fill();
+    });
+    if (hover>=0){ ctx.fillStyle = cssVar("--ink"); ctx.font = "600 10px system-ui"; ctx.textAlign="center";
+      ctx.fillText(`${data[hover]} req · ${hover}:00`, w/2, 10); }
+  }
+  cv.addEventListener("pointermove", e => { const r = cv.getBoundingClientRect();
+    hover = Math.max(0,Math.min(data.length-1,Math.floor((e.clientX-r.left-3)/bw))); draw(); });
+  cv.addEventListener("pointerleave", () => { hover = -1; draw(); });
+  draw();
+}
+// latency dot plot
+function drawLatency(cv){
+  const [ctx,w,h] = setupCanvas(cv);
+  const rows = [ ["qwen3.6-35b-distill",2.2,9.8,"79,124,240"], ["supergemma4-26b",12.4,31.0,"18,181,165"], ["kimi-k2-thinking",31.0,null,"240,160,79"] ];
+  const xmax = 34;
+  ctx.clearRect(0,0,w,h);
+  ctx.font = "10px system-ui";
+  rows.forEach(([name,p50,p95,rgb],i) => {
+    const y = 16 + i*16;
+    ctx.fillStyle = cssVar("--dim"); ctx.textAlign = "left"; ctx.fillText(name, 4, y+3);
+    const x0 = 150, x1 = w-10, X = v => x0 + v/xmax*(x1-x0);
+    ctx.strokeStyle = cssVar("--edge"); ctx.beginPath(); ctx.moveTo(x0,y); ctx.lineTo(x1,y); ctx.stroke();
+    if (p95){ ctx.strokeStyle = `rgba(${rgb},.4)`; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(X(p50),y); ctx.lineTo(X(p95),y); ctx.stroke(); ctx.lineWidth = 1; }
+    ctx.beginPath(); ctx.arc(X(p50),y,3.5,0,7); ctx.fillStyle = `rgba(${rgb},1)`; ctx.fill();
+    if (p95){ ctx.beginPath(); ctx.arc(X(p95),y,3.5,0,7); ctx.strokeStyle = `rgba(${rgb},1)`; ctx.stroke(); }
+  });
+}
+// ---------------- feed table ----------------
+const FEEDT = document.getElementById("feed");
+FEED.forEach(([t,h,m,tps,dur,cost,key,trunc]) => {
+  const tr = document.createElement("tr");
+  if (key) tr.dataset.series = key;
+  const hostClass = h==="cloud" ? "cloud" : (cost.startsWith("err") ? "err" : h);
+  tr.innerHTML = `<td class="num">${t}</td><td><span class="host ${hostClass}">${h}</span></td>
+    <td class="model">${m}</td>
+    <td><div class="tpscell">${tps?`<span class="num">${tps}</span><div class="tpsbar" style="width:${tps/45.4*60}px"></div>`:"—"}</div></td>
+    <td class="num">${dur}s ${trunc?'<span class="trunc">trunc</span>':""}</td>
+    <td class="num">${cost}</td>`;
+  if (key){
+    tr.addEventListener("mouseenter", () => { state.highlight = key; drawMain(); });
+    tr.addEventListener("mouseleave", () => { state.highlight = null; drawMain(); });
+  }
+  FEEDT.appendChild(tr);
+});
+drawMain();
+</script>
+</body>
+</html>

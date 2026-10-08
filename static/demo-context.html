@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>context-v1 lab — session growth</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="widget-lab.css" />
+</head>
+<body class="lab-context">
+  <div class="app">
+    <aside class="rail" aria-label="context-v1 lab">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg>
+        </div>
+        <div>
+          <h1>context-v1</h1>
+          <p>lab · not on Overview yet</p>
+        </div>
+      </div>
+      <nav class="nav">
+        <a class="is-active" href="/static/demo-context.html#/range=6h" data-tone="mint"><span class="dot"></span>Context growth</a>
+        <a href="/#/" id="navLive"><span class="dot"></span>Live Overview</a>
+        <a href="/static/demo-widget-lab.html#context"><span class="dot"></span>Context gauge mock</a>
+        <a href="/static/demo-runs.html#/range=6h"><span class="dot"></span>runs-v1 lab</a>
+        <a href="/static/demo-memory.html#/range=6h"><span class="dot"></span>memory-v1 lab</a>
+        <a href="/static/demo-speed.html#/range=6h"><span class="dot"></span>speed-v1 lab</a>
+        <a href="/static/demo-fan.html#/range=6h"><span class="dot"></span>fan-v1 lab</a>
+      </nav>
+      <div class="rail-note">
+        Isolated example of a cleaner Context growth panel. Same live <code>/api/recent</code> when :8899 serves this page; mock sessions if the API is unreachable. Does not patch Overview. Process: <code>docs/LAB-THEN-PATCH.md</code>.
+        <br /><br />
+        <a href="/" style="color:var(--mint)">← Live dashboard</a>
+      </div>
+    </aside>
+
+    <main class="gallery">
+      <header class="hero">
+        <div>
+          <h2>Context growth, cleaned up</h2>
+          <p>Overview today draws eight diagonal polylines in one color with a dot on every call — that is why sessions smear together. This lab keeps tokens <b>flat until the next request</b> (a step line), colors each conversation, isolates on hover, and fills a gauge for the selected session vs that model’s loaded ctx. Compaction ▼ and error markers stay; they have no Widget Lab equivalent.</p>
+        </div>
+        <div class="filters" role="group" aria-label="Time range">
+          <button class="filter" data-range="1h">1h</button>
+          <button class="filter is-on" data-range="6h">6h</button>
+          <button class="filter" data-range="12h">12h</button>
+          <button class="filter" data-range="24h">24h</button>
+        </div>
+      </header>
+
+      <div class="lab-flow" aria-label="Lab then patch">
+        <div class="lab-flow-step">
+          <b>1. Live API</b>
+          <span><code>/api/recent</code> · <code>input_tokens</code> per call</span>
+        </div>
+        <span class="lab-flow-arrow" aria-hidden="true">→</span>
+        <div class="lab-flow-step is-here">
+          <b>2. This lab</b>
+          <span>context-v1 · step + gauge</span>
+        </div>
+        <span class="lab-flow-arrow" aria-hidden="true">→</span>
+        <div class="lab-flow-step">
+          <b>3. Patch Overview</b>
+          <span>Memory &amp; KV · Classic frozen</span>
+        </div>
+      </div>
+
+      <section class="stage" id="context" data-kind="dash">
+        <div>
+          <div class="stage-label">
+            <span>Carry · Context gauge interaction → growth</span>
+            <span><span class="status status-ready">Lab</span> example · Overview not patched</span>
+          </div>
+          <article class="widget w-context-lab">
+            <header class="w-head">
+              <div class="w-id">
+                <span class="w-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 14c3-8 6 8 9 0s6 8 7 0"/></svg></span>
+                <div>
+                  <h3>Context growth</h3>
+                  <p id="ctxSub">input tokens per call · step line · one selected session</p>
+                </div>
+              </div>
+              <div class="w-actions">
+                <span class="chip chip-mint" id="liveChip"><span class="live-dot"></span> demo</span>
+              </div>
+            </header>
+            <p class="why-clean">Step encoding is the cleaner chart: context does not interpolate between calls. Ghost the other sessions instead of eight equal lines. Hover isolates; click a chip or a line to drive the gauge.</p>
+            <div class="ctx-legend" id="ctxLegend" role="tablist" aria-label="Conversations"></div>
+            <div class="ctx-pair">
+              <div class="panel grid-bg" style="position:relative;padding:8px 8px 4px">
+                <svg id="ctxLabChart" class="chart ctx-chart" viewBox="0 0 520 220" role="img" aria-label="Step lines of input tokens per conversation"></svg>
+                <div class="tooltip" id="ctxLabTip"></div>
+              </div>
+              <div class="ctx-gauge-card">
+                <p class="sub">Selected vs loaded ctx</p>
+                <div class="gauge-wrap" style="height:128px">
+                  <svg id="ctxGauge" viewBox="0 0 220 128" aria-label="Session fill versus model context cap"></svg>
+                  <div class="gauge-label" id="ctxGaugeLabel"><b>—</b><span class="sub">pick a session</span></div>
+                </div>
+                <p class="fan-detail" id="ctxGaugeMeta">Widget Lab gauge · cap from MODEL_POOL_CAPS, not a 128k mock</p>
+              </div>
+            </div>
+            <div class="kpi-row">
+              <div class="kpi"><b class="tabular" id="kpiSess">—</b><span>conversations</span></div>
+              <div class="kpi"><b class="tabular" id="kpiTok">—</b><span>selected in-tok</span></div>
+              <div class="kpi"><b class="tabular" id="kpiDrop">—</b><span>compactions</span></div>
+            </div>
+            <div class="foot">
+              <span id="ctxFoot">Loading…</span>
+              <div class="w-actions">
+                <a class="btn" id="openOverview" href="/#/">Open live Overview</a>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+    </main>
+  </div>
+  <script src="context-lab.js"></script>
+  <script src="demo-context.js"></script>
+</body>
+</html>

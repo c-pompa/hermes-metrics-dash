@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>router-v1 lab — live role router</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="widget-lab.css" />
+</head>
+<body class="lab-router">
+  <div class="app">
+    <aside class="rail" aria-label="router-v1 lab">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h7v12H4zM13 10h7v8h-7z"/><path d="M11 12h2"/></svg>
+        </div>
+        <div>
+          <h1>router-v1</h1>
+          <p>lab · not on Overview yet</p>
+        </div>
+      </div>
+      <nav class="nav">
+        <a class="is-active" href="#router" data-jump="router" data-tone="gold"><span class="dot"></span>Traffic split</a>
+        <a href="#roles" data-jump="roles" data-tone="mint"><span class="dot"></span>Role usage</a>
+        <a href="/static/demo-widget-lab.html#router"><span class="dot"></span>Original mock</a>
+        <a href="/static/demo-speed.html#/range=6h"><span class="dot"></span>speed-v1</a>
+        <a href="/#/" id="navLive"><span class="dot"></span>Routing &amp; roles</a>
+      </nav>
+      <div class="rail-note">
+        Widget Lab Role router on live <code>/api/recent</code> family lanes (local / glm / qwen / nvidia — never DSv4 flash/pro) plus <code>/api/router-usage</code> role bars. Same hash as Overview (<code>#/range=6h</code>). Routing workspace not patched. <code>docs/LAB-THEN-PATCH.md</code>.
+        <br /><br />
+        <a href="/" style="color:var(--mint)">← Live dashboard</a>
+      </div>
+    </aside>
+
+    <main class="gallery">
+      <header class="hero">
+        <div>
+          <h2>Live role router</h2>
+          <p>The mock sankey was a DSv4 flash/pro split. This lab keeps the ribbon visual and drives it from live model-family traffic, then shows the actual role log underneath.</p>
+        </div>
+        <div class="filters" role="group" aria-label="Time range">
+          <button class="filter" data-range="1h">1h</button>
+          <button class="filter is-on" data-range="6h">6h</button>
+          <button class="filter" data-range="12h">12h</button>
+          <button class="filter" data-range="24h">24h</button>
+        </div>
+      </header>
+
+      <div class="lab-flow" aria-label="Lab then patch">
+        <div class="lab-flow-step">
+          <b>1. Live API</b>
+          <span><code>/api/recent</code> + <code>/api/router-usage</code></span>
+        </div>
+        <span class="lab-flow-arrow" aria-hidden="true">→</span>
+        <div class="lab-flow-step is-here">
+          <b>2. This lab</b>
+          <span>sankey + role bars · <code>#/range=6h</code></span>
+        </div>
+        <span class="lab-flow-arrow" aria-hidden="true">→</span>
+        <div class="lab-flow-step">
+          <b>3. Patch Routing</b>
+          <span>workspace · Classic frozen</span>
+        </div>
+      </div>
+
+      <section class="stage" id="router" data-kind="dash">
+        <div>
+          <div class="stage-label">
+            <span>Carry · Model Router → live family lanes</span>
+            <span><span class="status status-ready">Lab</span> local · glm · qwen · nvidia</span>
+          </div>
+          <article class="widget w-router">
+            <header class="w-head">
+              <div class="w-id">
+                <div>
+                  <h3>Role router <span style="color:var(--muted);font-weight:500">/ live lanes · model family</span></h3>
+                </div>
+              </div>
+              <div class="w-actions">
+                <span class="chip chip-mint" id="liveChip"><span class="live-dot"></span> demo</span>
+                <div class="seg" id="hostSeg" role="group" aria-label="Host">
+                  <button class="is-on" data-host="" aria-pressed="true">all</button>
+                  <button data-host="mbp" aria-pressed="false">mbp</button>
+                  <button data-host="mini" aria-pressed="false">mini</button>
+                </div>
+              </div>
+            </header>
+            <p class="why-clean">Ribbons are share of <code>kind=api</code> in the window, bucketed the same way as the plugin Routing tab. Pin a family to fade the rest.</p>
+            <div class="panel grid-bg" style="position:relative">
+              <div style="display:flex;justify-content:space-between;align-items:flex-start">
+                <div>
+                  <div class="metric-xl tabular" id="routerN" style="font-size:26px">—</div>
+                  <div class="sub" id="routerSub">requests in range</div>
+                </div>
+                <div class="sub" id="routerTrend" style="color:var(--gold)">loading…</div>
+              </div>
+              <svg id="sankey" class="chart chart-host ctx-chart" style="height:188px" viewBox="0 0 520 180" aria-label="Traffic split by model family"></svg>
+              <div class="tooltip" id="sankeyTip"></div>
+            </div>
+            <div class="legend ctx-legend" id="laneLegend" style="margin:10px 0 0" role="tablist" aria-label="Lanes"></div>
+            <div class="kpi-row">
+              <div class="kpi"><b class="tabular" id="kpiTop">—</b><span id="kpiTopLabel">top lane</span></div>
+              <div class="kpi"><b class="tabular" id="kpiCost">—</b><span>blended cost per call</span></div>
+              <div class="kpi"><b class="tabular" id="kpiNv">—</b><span>nvidia share</span></div>
+            </div>
+            <div class="foot">
+              <span id="routerFoot">Loading…</span>
+              <div class="w-actions">
+                <a class="btn" href="#roles" data-jump="roles">Role log ↓</a>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="stage" id="roles" data-kind="dash">
+        <div>
+          <div class="stage-label">
+            <span>Role log · presence-aware aliases</span>
+            <span><span class="status status-ready">Lab</span> <code>/api/router-usage</code></span>
+          </div>
+          <article class="widget w-router">
+            <header class="w-head">
+              <div class="w-id">
+                <span class="w-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M4 12h10M4 17h13"/></svg></span>
+                <div>
+                  <h3>Role usage</h3>
+                  <p id="roleSub">from the router execution log</p>
+                </div>
+              </div>
+            </header>
+            <div class="panel grid-bg" style="position:relative;padding:8px;margin-top:10px">
+              <svg id="roleChart" class="chart chart-roles ctx-chart" viewBox="0 0 680 160" aria-label="Requests per router role"></svg>
+              <div class="tooltip" id="roleTip"></div>
+            </div>
+            <div id="statusRoles" class="role-status"></div>
+            <div id="roleDeg" class="role-deg"></div>
+            <div class="foot">
+              <span id="roleFoot">Loading…</span>
+              <div class="w-actions">
+                <a class="btn" id="openRouting" href="/#/">Open Routing &amp; roles</a>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+    </main>
+  </div>
+  <script src="router-lab.js"></script>
+  <script src="demo-router.js"></script>
+</body>
+</html>

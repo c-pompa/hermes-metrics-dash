@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>ai.hermes.lmharness</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/usr/bin/python3</string>
+    <!-- replace &lt;mbp-user&gt; with the real home (docs/HARNESS.md has a one-liner) -->
+    <string>/Users/&lt;mbp-user&gt;/hermes-metrics-dash/harness/collector.py</string>
+  </array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <!-- seconds between full suites; the code default is also 300 -->
+    <key>HARNESS_INTERVAL</key><string>300</string>
+    <!-- dashboard ingest base; the code default is loopback -->
+    <key>METRICS_DASH_URL</key><string>http://&lt;dashboard-host&gt;:8899</string>
+  </dict>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><true/>
+  <key>ThrottleInterval</key><integer>30</integer>
+  <key>StandardOutPath</key><string>/Users/&lt;mbp-user&gt;/.hermes/logs/harness-collector.log</string>
+  <key>StandardErrorPath</key><string>/Users/&lt;mbp-user&gt;/.hermes/logs/harness-collector.err.log</string>
+</dict>
+</plist>

@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hermes Observatory — demo A</title>
+<style>
+  :root {
+    --bg: #05060e; --panel: rgba(16, 20, 38, .62); --edge: rgba(120, 160, 255, .18);
+    --ink: #e8ecff; --dim: #8b93b8; --accent: #6ea8ff; --accent2: #41f0d1;
+    --warn: #ffb454; --bad: #ff6b7a;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body { background: var(--bg); color: var(--ink); font: 13px/1.5 "SF Mono", ui-monospace, Menlo, monospace; overflow-x: hidden; }
+  #scene { position: fixed; inset: 0; z-index: 0; }
+  .vignette { position: fixed; inset: 0; z-index: 1; pointer-events: none;
+    background: radial-gradient(ellipse at center, transparent 40%, rgba(3,4,10,.8) 100%); }
+
+  header { position: relative; z-index: 3; display: flex; align-items: center; gap: 18px; padding: 18px 26px; }
+  .logo { font-size: 15px; letter-spacing: .35em; color: var(--ink); text-shadow: 0 0 18px rgba(110,168,255,.8); animation: glowpulse 3s ease-in-out infinite; }
+  @keyframes glowpulse { 50% { text-shadow: 0 0 30px rgba(110,168,255,1); } }
+  .beacon { font-size: 10px; letter-spacing: .15em; padding: 4px 12px; border: 1px solid var(--edge); border-radius: 999px; color: var(--accent2); animation: beaconblink 2.4s infinite; }
+  @keyframes beaconblink { 50% { box-shadow: 0 0 16px rgba(65,240,209,.5); } }
+  #clock { margin-left: auto; color: var(--dim); font-size: 11px; letter-spacing: .1em; }
+
+  .layout { position: relative; z-index: 2; display: grid; grid-template-columns: 320px 1fr 340px; gap: 18px; padding: 0 26px 90px; }
+  @media (max-width: 1100px) { .layout { grid-template-columns: 1fr; } }
+
+  .panel { background: var(--panel); border: 1px solid var(--edge); border-radius: 14px; padding: 16px 18px;
+    backdrop-filter: blur(14px); box-shadow: 0 8px 40px rgba(0,0,0,.5);
+    opacity: 0; transform: translateY(24px); animation: rise .7s cubic-bezier(.2,.9,.3,1.2) forwards; }
+  .panel:nth-child(2) { animation-delay: .12s; } .panel:nth-child(3) { animation-delay: .24s; }
+  @keyframes rise { to { opacity: 1; transform: none; } }
+  .panel h2 { font-size: 10px; letter-spacing: .3em; color: var(--dim); margin-bottom: 12px; }
+
+  .host { padding: 10px 0; border-bottom: 1px solid rgba(120,160,255,.08); }
+  .host:last-child { border: 0; }
+  .host .row1 { display: flex; align-items: center; gap: 8px; }
+  .orb { width: 9px; height: 9px; border-radius: 50%; background: var(--accent2); box-shadow: 0 0 10px var(--accent2); animation: orb 2s infinite; }
+  .orb.stale { background: var(--warn); box-shadow: 0 0 10px var(--warn); }
+  @keyframes orb { 50% { transform: scale(1.5); opacity: .6; } }
+  .host b { font-size: 13px; letter-spacing: .1em; }
+  .host .nums { display: flex; gap: 14px; color: var(--dim); font-size: 11px; margin: 6px 0 2px; }
+  .host .nums b { color: var(--ink); font-size: 12px; }
+  .host canvas { width: 100%; height: 26px; display: block; margin-top: 4px; }
+
+  .bignum { font-size: 34px; font-weight: 700; color: var(--ink); text-shadow: 0 0 24px rgba(65,240,209,.6); }
+  .kpi { display: flex; justify-content: space-between; align-items: baseline; padding: 6px 0; color: var(--dim); font-size: 11px; }
+
+  #tpschart { width: 100%; height: 190px; display: block; cursor: crosshair; }
+  .legend { display: flex; gap: 14px; font-size: 10px; color: var(--dim); margin-top: 6px; flex-wrap: wrap; }
+  .sw { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 5px; }
+
+  .bars .brow { margin: 10px 0; }
+  .bars .blabel { display: flex; justify-content: space-between; font-size: 10px; color: var(--dim); margin-bottom: 3px; }
+  .bar { height: 10px; border-radius: 6px; background: rgba(120,160,255,.12); overflow: hidden; }
+  .bar i { display: block; height: 100%; width: 0; border-radius: 6px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    box-shadow: 0 0 12px rgba(65,240,209,.5); transition: width 1.4s cubic-bezier(.2,.8,.2,1); }
+
+  #tooltip { position: fixed; z-index: 9; pointer-events: none; background: rgba(10,14,30,.92); border: 1px solid var(--edge);
+    border-radius: 10px; padding: 10px 12px; font-size: 11px; color: var(--ink); display: none; max-width: 260px;
+    box-shadow: 0 10px 40px rgba(0,0,0,.6); backdrop-filter: blur(8px); }
+  #tooltip b { color: var(--accent2); }
+
+  .ticker { position: fixed; left: 0; right: 0; bottom: 0; z-index: 4; height: 44px; display: flex; align-items: center;
+    background: rgba(8,10,22,.85); border-top: 1px solid var(--edge); backdrop-filter: blur(10px); overflow: hidden; }
+  .ticker .inner { display: flex; gap: 48px; white-space: nowrap; animation: tick 40s linear infinite; padding-left: 100vw; }
+  @keyframes tick { to { transform: translateX(-100%); } }
+  .tick-item { color: var(--dim); font-size: 11px; }
+  .tick-item b { color: var(--accent2); }
+  .tick-item .t { color: var(--accent); }
+
+  #fallback { display: none; position: fixed; inset: 0; z-index: 5; place-items: center; color: var(--dim); text-align: center; }
+</style>
+</head>
+<body>
+<div id="scene"></div>
+<div class="vignette"></div>
+<div id="fallback"><div>three.js failed to load (offline?) — the observatory needs a network connection for the CDN.<br>The data panels still work below.</div></div>
+
+<header>
+  <div class="logo">HERMES // OBSERVATORY</div>
+  <div class="beacon">ENV ▸ SINGLE-MODEL</div>
+  <div id="clock">—</div>
+</header>
+
+<div class="layout">
+  <div class="panel" id="fleetPanel">
+    <h2>FLEET UPLINK</h2>
+    <div id="hosts"></div>
+    <div class="kpi" style="margin-top:10px"><span>REQUESTS / 24H</span><span class="bignum" id="reqCount">0</span></div>
+  </div>
+
+  <div class="panel" style="min-height:380px">
+    <h2>LIVE ORBIT — hover a body, click to approach</h2>
+    <div style="color:var(--dim); font-size:11px">comets = requests · velocity ∝ t/s · satellites = loaded models</div>
+  </div>
+
+  <div class="panel">
+    <h2>THROUGHPUT / T·S⁻¹ OVER 24H</h2>
+    <canvas id="tpschart"></canvas>
+    <div class="legend">
+      <span><span class="sw" style="background:#41f0d1"></span>supergemma4-26b</span>
+      <span><span class="sw" style="background:#6ea8ff"></span>qwen3.6-35b-distill</span>
+      <span><span class="sw" style="background:#ffb454"></span>kimi-k2 (cloud)</span>
+    </div>
+    <h2 style="margin-top:18px">MODEL LEADERS · MEDIAN T/S</h2>
+    <div class="bars" id="leaderbars"></div>
+  </div>
+</div>
+
+<div id="tooltip"></div>
+<div class="ticker"><div class="inner" id="tickerInner"></div></div>
+
+<script type="module">
+// ---------- real fleet data (2026-07-19) ----------
+const HOSTS = [
+  { id:"mini",  cpu:1.2, ram:[21.4,32], reqs:41, models:["qwen3.6-35b-distill","supergemma4-26b","nomic-embed"], uptime:["3d","5d","12d"], color:0x41f0d1, orbit:5.2, speed:.16 },
+  { id:"mbp",   cpu:0.8, ram:[17.1,24], reqs:94, models:["qwen3.6-35b-distill","supergemma4-26b","nomic-embed"], uptime:["3d","5d","12d"], color:0x6ea8ff, orbit:7.0, speed:-.11 },
+  { id:"WinPC", cpu:null, ram:null, stale:true, reqs:0, models:["qwen3.6-27b-aggressive"], uptime:["?"], color:0xffb454, orbit:8.8, speed:.07 },
+];
+const LEADERS = [ ["qwen3.6-35b-distill", 22.4], ["supergemma4-26b", 16.5], ["kimi-k2-thinking", 0] ];
+const TICKS = [
+  ["12:06:11","mbp","supergemma4-26b",18.2,"9.1s"], ["11:58:44","mbp","supergemma4-26b",16.9,"12.4s"],
+  ["11:52:03","mini","qwen3.6-35b-distill",45.4,"2.2s"], ["11:41:37","cloud","kimi-k2-thinking",0,"31.0s"],
+  ["11:36:20","mbp","supergemma4-26b",15.8,"14.9s"], ["11:22:08","mbp","supergemma4-26b",0,"ERR ×3"],
+];
+const SERIES = { // [tps-ish points per model over 24h]
+  gemma: [14,16,15,17,16,18,17,16,15,16,17,19,18,16,17,16,15,16,18,17,16,15,14,16],
+  qwen:  [22,24,21,23,45,22,20,21,22,23,24,22,21,22,23,21,22,24,23,22,21,22,23,22],
+  kimi:  [0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0],
+};
+
+// ---------- header clock + count-ups ----------
+setInterval(() => { document.getElementById("clock").textContent =
+  new Date().toISOString().replace("T"," ▸ ").slice(0,25) + " UTC"; }, 1000);
+(function countUp(el, target, dur=1600){ const t0 = performance.now();
+  (function f(t){ const p = Math.min(1,(t-t0)/dur), e = 1-Math.pow(1-p,3);
+    el.textContent = Math.round(target*e); if (p<1) requestAnimationFrame(f); })(t0);
+})(document.getElementById("reqCount"), 135);
+
+// ---------- fleet panel ----------
+const hostsEl = document.getElementById("hosts");
+HOSTS.forEach((h,i) => {
+  const div = document.createElement("div"); div.className = "host";
+  div.innerHTML = `<div class="row1"><span class="orb ${h.stale?"stale":""}"></span><b>${h.id}</b>
+    <span style="margin-left:auto;color:var(--dim);font-size:10px">${h.stale?"stale 6h":"live"}</span></div>
+    <div class="nums"><span>CPU <b>${h.cpu??"—"}</b></span><span>RAM <b>${h.ram?h.ram.join("/")+" GB":"—"}</b></span><span>REQ <b>${h.reqs}</b></span></div>
+    <canvas width="280" height="26" data-h="${i}"></canvas>`;
+  hostsEl.appendChild(div);
+});
+// host sparklines (synthetic but shaped from real cpu/ram levels)
+document.querySelectorAll("#hosts canvas").forEach(cv => {
+  const ctx = cv.getContext("2d"); const pts = [];
+  let v = 6 + Math.random()*4;
+  for (let x=0;x<70;x++){ v += (Math.random()-.5)*1.6; v = Math.max(2,Math.min(20,v)); pts.push(v); }
+  let f = 0;
+  (function draw(){
+    ctx.clearRect(0,0,280,26); ctx.beginPath();
+    pts.forEach((p,x)=>{ const y = 24-p; x?ctx.lineTo(x*4,y):ctx.moveTo(x*4,y); });
+    ctx.strokeStyle = "rgba(110,168,255,.9)"; ctx.lineWidth = 1.4; ctx.stroke();
+    ctx.lineTo(280,26); ctx.lineTo(0,26); ctx.closePath();
+    ctx.fillStyle = "rgba(110,168,255,.08)"; ctx.fill();
+    if (++f < 60) requestAnimationFrame(draw); // draw-in
+  })();
+});
+
+// ---------- leader bars ----------
+const lb = document.getElementById("leaderbars");
+LEADERS.forEach(([name,v]) => {
+  const max = 45.4, pct = Math.max(2, v/max*100);
+  const row = document.createElement("div"); row.className = "brow";
+  row.innerHTML = `<div class="blabel"><span>${name}</span><span>${v||"—"}</span></div><div class="bar"><i data-w="${pct}"></i></div>`;
+  lb.appendChild(row);
+});
+setTimeout(() => document.querySelectorAll(".bar i").forEach(b => b.style.width = b.dataset.w+"%"), 400);
+
+// ---------- ticker ----------
+const ti = document.getElementById("tickerInner");
+ti.innerHTML = TICKS.concat(TICKS).map(([t,h,m,tps,d]) =>
+  `<span class="tick-item"><span class="t">${t}</span> ${h} ▸ ${m} ▸ <b>${tps||d}</b>${tps?" t/s":""}</span>`).join("");
+
+// ---------- interactive tps chart (canvas) ----------
+const chart = document.getElementById("tpschart"), cx = chart.getContext("2d");
+let hover = -1, progress = 0;
+function sizeChart(){ chart.width = chart.clientWidth*2; chart.height = 380; cx.setTransform(2,0,0,2,0,0); }
+sizeChart(); addEventListener("resize", sizeChart);
+chart.addEventListener("pointermove", e => { const r = chart.getBoundingClientRect();
+  hover = Math.round((e.clientX-r.left)/r.width*23); });
+chart.addEventListener("pointerleave", () => hover = -1);
+const COLORS = { gemma:"#41f0d1", qwen:"#6ea8ff", kimi:"#ffb454" };
+(function drawChart(){
+  const W = chart.clientWidth, H = 190, pad = 24;
+  cx.clearRect(0,0,W,H);
+  cx.strokeStyle = "rgba(120,160,255,.08)";
+  for (let g=0; g<5; g++){ cx.beginPath(); cx.moveTo(0,pad+g*34); cx.lineTo(W,pad+g*34); cx.stroke(); }
+  progress = Math.min(1, progress+.02);
+  for (const [key,pts] of Object.entries(SERIES)) {
+    cx.beginPath();
+    const n = Math.floor(pts.length*progress);
+    for (let i=0;i<n;i++){ const x = pad+i*(W-pad*2)/23, y = H-10-pts[i]/45.4*(H-50);
+      i?cx.lineTo(x,y):cx.moveTo(x,y); }
+    cx.strokeStyle = COLORS[key]; cx.lineWidth = 1.6;
+    cx.shadowColor = COLORS[key]; cx.shadowBlur = 8; cx.stroke(); cx.shadowBlur = 0;
+    if (hover>=0 && hover<pts.length){ const x = pad+hover*(W-pad*2)/23, y = H-10-pts[hover]/45.4*(H-50);
+      cx.beginPath(); cx.arc(x,y,4,0,7); cx.fillStyle = COLORS[key]; cx.fill();
+      cx.fillStyle = "#e8ecff"; cx.font = "10px Menlo"; cx.fillText(`${key} ${pts[hover]} t/s`, Math.min(x+8,W-90), y-8); }
+  }
+  requestAnimationFrame(drawChart);
+})();
+
+// ---------- THREE.JS observatory ----------
+let THREE;
+try { THREE = await import("https://unpkg.com/three@0.160.0/build/three.module.js"); }
+catch (e) { document.getElementById("fallback").style.display = "grid"; }
+
+if (THREE) {
+  const scene = new THREE.Scene();
+  scene.fog = new THREE.FogExp2(0x05060e, 0.028);
+  const cam = new THREE.PerspectiveCamera(55, innerWidth/innerHeight, .1, 200);
+  cam.position.set(0, 6, 15);
+  const ren = new THREE.WebGLRenderer({ antialias:true, alpha:true });
+  ren.setSize(innerWidth, innerHeight); ren.setPixelRatio(Math.min(devicePixelRatio,2));
+  document.getElementById("scene").appendChild(ren.domElement);
+
+  scene.add(new THREE.AmbientLight(0x223355, 1.2));
+  const core = new THREE.PointLight(0x6ea8ff, 60, 60); core.position.set(0,2,0); scene.add(core);
+
+  // starfield
+  const starGeo = new THREE.BufferGeometry();
+  const starPos = new Float32Array(2400*3);
+  for (let i=0;i<2400*3;i++) starPos[i] = (Math.random()-.5)*120;
+  starGeo.setAttribute("position", new THREE.BufferAttribute(starPos,3));
+  const stars = new THREE.Points(starGeo, new THREE.PointsMaterial({ color:0x8899cc, size:.07, transparent:true, opacity:.8 }));
+  scene.add(stars);
+
+  // central core
+  const coreMesh = new THREE.Mesh(new THREE.IcosahedronGeometry(.9,2),
+    new THREE.MeshStandardMaterial({ color:0x223366, emissive:0x6ea8ff, emissiveIntensity:1.6, wireframe:true }));
+  scene.add(coreMesh);
+
+  // host bodies + model satellites + request comets
+  const bodies = [];
+  HOSTS.forEach((h,i) => {
+    const g = new THREE.Group();
+    const radius = h.stale ? .55 : .7;
+    const body = new THREE.Mesh(new THREE.SphereGeometry(radius, 32, 32),
+      new THREE.MeshStandardMaterial({ color:h.color, emissive:h.color, emissiveIntensity:h.stale?.25:.7,
+        roughness:.3, metalness:.6, transparent:true, opacity:h.stale?.55:1 }));
+    g.add(body);
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(radius+.35,.015,8,64),
+      new THREE.MeshBasicMaterial({ color:h.color, transparent:true, opacity:.35 }));
+    ring.rotation.x = Math.PI/2.4; g.add(ring);
+    const sats = [];
+    h.models.forEach((m,k) => {
+      const pivot = new THREE.Group();
+      const s = new THREE.Mesh(new THREE.BoxGeometry(.14,.14,.14),
+        new THREE.MeshStandardMaterial({ color:0xffffff, emissive:h.color, emissiveIntensity:1.2 }));
+      s.position.set(radius+.6, 0, 0);
+      pivot.add(s); pivot.rotation.x = k*1.1; g.add(pivot); sats.push(pivot);
+    });
+    scene.add(g);
+    bodies.push({ g, body, sats, h, angle: i*2.1 });
+  });
+
+  const comets = [];
+  function spawnComet(bi) {
+    const b = bodies[bi]; if (!b || b.h.stale) return;
+    const dir = new THREE.Vector3(Math.random()-.5, Math.random()*.6, Math.random()-.5).normalize();
+    const m = new THREE.Mesh(new THREE.SphereGeometry(.06,8,8),
+      new THREE.MeshBasicMaterial({ color:0xffffff }));
+    const world = new THREE.Vector3(); b.body.getWorldPosition(world);
+    m.position.copy(world);
+    scene.add(m);
+    const tps = [45.4,22.4,16.5,18.2][Math.floor(Math.random()*4)];
+    comets.push({ m, dir, speed: .02 + tps/900, life: 1 });
+    // flash
+    b.body.material.emissiveIntensity = 1.8;
+    setTimeout(() => b.body.material.emissiveIntensity = b.h.stale?.25:.7, 180);
+  }
+  setInterval(() => spawnComet(Math.random()<.7?1:0), 1400);
+
+  // interaction
+  const ray = new THREE.Raycaster(), mouse = new THREE.Vector2(-9,-9);
+  const tip = document.getElementById("tooltip");
+  let focusIdx = -1;
+  addEventListener("pointermove", e => {
+    mouse.x = e.clientX/innerWidth*2-1; mouse.y = -(e.clientY/innerHeight)*2+1;
+    tip.style.left = (e.clientX+16)+"px"; tip.style.top = (e.clientY+10)+"px";
+  });
+  addEventListener("click", () => { if (hovered>=0) focusIdx = focusIdx===hovered?-1:hovered; });
+  let hovered = -1;
+
+  const camTarget = new THREE.Vector3(0,6,15), lookTarget = new THREE.Vector3();
+  (function loop(t){
+    requestAnimationFrame(loop); t = t||0;
+    stars.rotation.y = t*.00002 + mouse.x*.02;
+    coreMesh.rotation.y = t*.0006; coreMesh.rotation.x = t*.0003;
+    bodies.forEach((b,i) => {
+      b.angle += b.h.speed*.004;
+      b.g.position.set(Math.cos(b.angle)*b.h.orbit, Math.sin(b.angle*1.7)*.8, Math.sin(b.angle)*b.h.orbit);
+      b.body.rotation.y += .01;
+      b.sats.forEach((p,k) => p.rotation.y += .02+k*.004);
+      b.g.scale.setScalar(focusIdx===-1||focusIdx===i ? 1 : .55);
+    });
+    for (let i=comets.length-1;i>=0;i--){ const c = comets[i];
+      c.m.position.addScaledVector(c.dir, c.speed); c.life -= .006;
+      c.m.material.opacity = c.life; c.m.material.transparent = true;
+      if (c.life<=0){ scene.remove(c.m); comets.splice(i,1); } }
+
+    // hover
+    ray.setFromCamera(mouse, cam);
+    const hits = ray.intersectObjects(bodies.map(b => b.body));
+    hovered = hits.length ? bodies.findIndex(b => b.body===hits[0].object) : -1;
+    document.body.style.cursor = hovered>=0 ? "pointer" : "";
+    if (hovered>=0){ const h = HOSTS[hovered];
+      tip.style.display = "block";
+      tip.innerHTML = `<b>${h.id}</b> ${h.stale?"(stale)":"(live)"}<br>cpu ${h.cpu??"—"} · ram ${h.ram?h.ram.join("/"):"—"}<br>${h.models.length} models · ${h.reqs} req/24h`;
+    } else tip.style.display = "none";
+
+    // camera glide
+    if (focusIdx>=0){ const p = bodies[focusIdx].g.position;
+      camTarget.set(p.x*1.25, p.y+2.2, p.z*1.25); lookTarget.copy(p);
+    } else { camTarget.set(mouse.x*2.5, 6+mouse.y*1.2, 15); lookTarget.set(0,0,0); }
+    cam.position.lerp(camTarget, .04);
+    cam.lookAt(lookTarget.x||0, lookTarget.y||0, lookTarget.z||0);
+    ren.render(scene, cam);
+  })();
+  addEventListener("resize", () => { cam.aspect = innerWidth/innerHeight; cam.updateProjectionMatrix(); ren.setSize(innerWidth, innerHeight); });
+}
+</script>
+</body>
+</html>

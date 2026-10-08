@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Lab Rack — infrastructure demo 1</title>
+<style>
+  :root {
+    --bg: #0b0e16; --panel: rgba(17, 22, 36, .78); --edge: rgba(130,160,220,.18);
+    --ink: #e9edf8; --dim: #8e97b5; --accent: #7fd4ff; --accent2: #9dffb0; --warn: #ffcf7a; --bad: #ff8f7a;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body { background: var(--bg); color: var(--ink); font: 13px/1.5 "SF Mono", ui-monospace, Menlo, monospace; overflow-x: hidden; }
+  #stage { position: fixed; inset: 0; z-index: 0; }
+  header { position: relative; z-index: 3; display: flex; align-items: baseline; gap: 16px; padding: 20px 28px; flex-wrap: wrap; }
+  .logo { font-size: 16px; letter-spacing: .3em; color: var(--ink); }
+  .logo b { color: var(--accent); }
+  .sub { color: var(--dim); font-size: 10px; letter-spacing: .22em; }
+  .date { margin-left: auto; color: var(--dim); font-size: 10px; letter-spacing: .15em; }
+
+  .side { position: relative; z-index: 2; float: right; width: 340px; margin: 0 28px; display: grid; gap: 14px; }
+  @media (max-width: 900px) { .side { float: none; width: auto; margin: 0 20px 90px; } }
+  .panel { background: var(--panel); border: 1px solid var(--edge); border-radius: 12px; padding: 16px 18px;
+    backdrop-filter: blur(12px); box-shadow: 0 12px 50px rgba(0,0,0,.5);
+    opacity: 0; transform: translateX(30px); animation: slidein .7s cubic-bezier(.2,.9,.3,1.1) forwards; }
+  .panel:nth-child(2) { animation-delay: .15s; }
+  @keyframes slidein { to { opacity: 1; transform: none; } }
+  .panel h2 { font-size: 10px; letter-spacing: .3em; color: var(--dim); margin-bottom: 12px; }
+  .inv { padding: 7px 0; border-bottom: 1px solid rgba(130,160,220,.09); }
+  .inv:last-child { border: 0; }
+  .inv .m1 { display: flex; justify-content: space-between; font-size: 12px; }
+  .inv .m1 b { color: var(--ink); }
+  .inv .m2 { font-size: 10px; color: var(--dim); margin-top: 2px; }
+  .useg { font-size: 9px; letter-spacing: .12em; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--edge); color: var(--accent2); }
+  .kpi { display: flex; justify-content: space-between; padding: 5px 0; font-size: 11px; color: var(--dim); }
+  .kpi b { color: var(--ink); font-size: 13px; }
+
+  #detail { position: fixed; z-index: 6; left: 28px; bottom: 70px; width: 320px; background: var(--panel);
+    border: 1px solid var(--edge); border-radius: 12px; padding: 16px 18px; backdrop-filter: blur(12px);
+    box-shadow: 0 12px 50px rgba(0,0,0,.6); transform: translateY(20px); opacity: 0; pointer-events: none;
+    transition: all .35s cubic-bezier(.2,.9,.3,1.1); }
+  #detail.show { transform: none; opacity: 1; pointer-events: auto; }
+  #detail h3 { font-size: 14px; letter-spacing: .15em; margin-bottom: 2px; }
+  #detail .role { font-size: 10px; color: var(--accent); letter-spacing: .15em; margin-bottom: 10px; }
+  #detail .kv { display: flex; justify-content: space-between; font-size: 11px; color: var(--dim); padding: 4px 0;
+    border-bottom: 1px solid rgba(130,160,220,.09); }
+  #detail .kv b { color: var(--ink); }
+  #detail .close { position: absolute; top: 10px; right: 12px; color: var(--dim); cursor: pointer; font-size: 14px; }
+
+  .ticker { position: fixed; left: 0; right: 0; bottom: 0; z-index: 4; height: 44px; display: flex; align-items: center;
+    background: rgba(10,13,22,.88); border-top: 1px solid var(--edge); backdrop-filter: blur(10px); overflow: hidden; }
+  .ticker .inner { display: flex; gap: 48px; white-space: nowrap; animation: tick 42s linear infinite; padding-left: 100vw; }
+  @keyframes tick { to { transform: translateX(-100%); } }
+  .tick-item { color: var(--dim); font-size: 11px; }
+  .tick-item b { color: var(--accent2); } .tick-item .t { color: var(--accent); }
+</style>
+<link rel="stylesheet" href="/static/icons.css">
+</head>
+<body>
+<canvas id="stage"></canvas>
+
+<header>
+  <div class="logo">THE <b>LAB RACK</b></div>
+  <div class="sub">AI INFRASTRUCTURE · PHYSICAL VIEW</div>
+  <div class="date">BRIEFING · 2026-07-19</div>
+</header>
+
+<div class="side">
+  <div class="panel">
+    <h2>SOFTWARE INVENTORY</h2>
+    <div id="inventory"></div>
+  </div>
+  <div class="panel">
+    <h2>FLEET TOTALS · 24H</h2>
+    <div class="kpi"><span>requests served</span><b>135</b></div>
+    <div class="kpi"><span>median throughput</span><b>16.5 t/s</b></div>
+    <div class="kpi"><span>best single request</span><b>45.4 t/s</b></div>
+    <div class="kpi"><span>inference cost</span><b>$0.42</b></div>
+    <div class="kpi"><span>models in memory</span><b>7 across 3 hosts</b></div>
+  </div>
+</div>
+
+<div id="detail">
+  <span class="close" id="dclose" aria-label="close"><span class="ico ico-x" aria-hidden="true"></span></span>
+  <h3 id="dname">—</h3>
+  <div class="role" id="drole">—</div>
+  <div id="dkv"></div>
+</div>
+
+<div class="ticker"><div class="inner" id="tickerInner"></div></div>
+
+<script>
+// ---------------- data ----------------
+const MACHINES = [
+  { id:"mini", name:"MAC MINI", role:"GATEWAY · DASHBOARD · ALWAYS ON",
+    x:.30, y:.62, w:90, h:60, color:"#7fd4ff", cpu:1.2, ram:[21.4,32], req:41,
+    specs:["Apple silicon · 32 GB unified","hosts: gateway, dashboard, MoA","3 models resident"],
+    models:[["qwen3.6-35b-distill","19.8 GB · aggregator"],["supergemma4-26b","15.2 GB · dialectic"],["nomic-embed","0.3 GB · embeddings"]] },
+  { id:"mbp", name:"MACBOOK PRO", role:"DAILY AGENT · TUI WORKSTATION",
+    x:.56, y:.70, w:120, h:36, color:"#9dffb0", cpu:0.8, ram:[17.1,24], req:94,
+    specs:["Apple silicon · 24 GB unified","primary interactive agent","3 models resident"],
+    models:[["qwen3.6-35b-distill","19.8 GB · aggregator"],["supergemma4-26b","15.2 GB · dialectic"],["nomic-embed","0.3 GB · embeddings"]] },
+  { id:"WinPC", name:"WINPC", role:"GPU WORKER · WINDOWS · STALE 6H",
+    x:.78, y:.48, w:100, h:78, color:"#ffcf7a", stale:true, cpu:null, ram:null, req:0,
+    specs:["RTX 5080 · 16 GB VRAM","CUDA worker via LM Link federation","1 model resident"],
+    models:[["qwen3.6-27b-aggressive","16.1 GB · deriver"]] },
+];
+const FLOWS = [ ["mbp","mini"], ["mini","WinPC"], ["mbp","WinPC"] ];
+const TICKS = [
+  ["12:06:11","mbp","supergemma4-26b","18.2 t/s"], ["11:58:44","mbp","supergemma4-26b","16.9 t/s"],
+  ["11:52:03","mini","qwen3.6-35b-distill","45.4 t/s"], ["11:41:37","cloud","kimi-k2-thinking","31.0s"],
+  ["11:36:20","mbp","supergemma4-26b","15.8 t/s"], ["11:22:08","mbp","supergemma4-26b","error ×3"],
+];
+
+// inventory panel
+document.getElementById("inventory").innerHTML = MACHINES.flatMap(m =>
+  m.models.map(([name,meta]) => `<div class="inv"><div class="m1"><b>${name}</b><span class="useg">${m.id}</span></div><div class="m2">${meta}</div></div>`)).join("");
+document.getElementById("tickerInner").innerHTML = TICKS.concat(TICKS).map(([t,h,m,d]) =>
+  `<span class="tick-item"><span class="t">${t}</span> ${h} ▸ ${m} ▸ <b>${d}</b></span>`).join("");
+
+// ---------------- isometric stage ----------------
+const cv = document.getElementById("stage"), ctx = cv.getContext("2d");
+let W, H;
+function size(){ W = innerWidth; H = innerHeight; const d = Math.min(devicePixelRatio,2);
+  cv.width = W*d; cv.height = H*d; ctx.setTransform(d,0,0,d,0,0); }
+size(); addEventListener("resize", size);
+
+const ISO_X = Math.cos(Math.PI/6), ISO_Y = Math.sin(Math.PI/6);
+function iso(x, y, z, ox, oy) { return [ox + (x-y)*ISO_X, oy + (x+y)*ISO_Y - z]; }
+function box(ctx, x, y, z, w, d, h, ox, oy, colors) {
+  const p = (px,py,pz) => iso(px,py,pz,ox,oy);
+  // top
+  ctx.beginPath();
+  let pt = p(x,y,z+h); ctx.moveTo(...pt);
+  pt = p(x+w,y,z+h); ctx.lineTo(...pt);
+  pt = p(x+w,y+d,z+h); ctx.lineTo(...pt);
+  pt = p(x,y+d,z+h); ctx.lineTo(...pt);
+  ctx.closePath(); ctx.fillStyle = colors.top; ctx.fill();
+  // left face
+  ctx.beginPath();
+  pt = p(x,y+d,z+h); ctx.moveTo(...pt);
+  pt = p(x+w,y+d,z+h); ctx.lineTo(...pt);
+  pt = p(x+w,y+d,z); ctx.lineTo(...pt);
+  pt = p(x,y+d,z); ctx.lineTo(...pt);
+  ctx.closePath(); ctx.fillStyle = colors.left; ctx.fill();
+  // right face
+  ctx.beginPath();
+  pt = p(x+w,y+d,z+h); ctx.moveTo(...pt);
+  pt = p(x+w,y,z+h); ctx.lineTo(...pt);
+  pt = p(x+w,y,z); ctx.lineTo(...pt);
+  pt = p(x+w,y+d,z); ctx.lineTo(...pt);
+  ctx.closePath(); ctx.fillStyle = colors.right; ctx.fill();
+}
+
+let mouse = {x:.5,y:.5}, selected = null;
+addEventListener("pointermove", e => { mouse = {x:e.clientX/W, y:e.clientY/H};
+  document.getElementById("stage").style.cursor = "default"; });
+addEventListener("click", e => {
+  const hit = MACHINES.find(m => m._hit && e.clientX>m._hit[0] && e.clientX<m._hit[2] && e.clientY>m._hit[1] && e.clientY<m._hit[3]);
+  if (hit) { selected = hit; showDetail(hit); } else { selected = null; document.getElementById("detail").classList.remove("show"); }
+});
+document.getElementById("dclose").onclick = () => { selected = null; document.getElementById("detail").classList.remove("show"); };
+function showDetail(m){
+  document.getElementById("dname").textContent = m.name;
+  document.getElementById("dname").style.color = m.color;
+  document.getElementById("drole").textContent = m.role;
+  document.getElementById("dkv").innerHTML = [
+    ["status", m.stale ? "stale — 6h" : "online"], ["cpu load", m.cpu ?? "—"],
+    ["memory", m.ram ? m.ram.join(" / ") + " GB" : "—"], ["requests 24h", m.req],
+    ...m.specs.map((s,i) => ["spec " + (i+1), s]),
+  ].map(([k,v]) => `<div class="kv"><span>${k}</span><b>${v}</b></div>`).join("");
+  document.getElementById("detail").classList.add("show");
+}
+
+// flow particles between machines
+const particles = [];
+setInterval(() => {
+  const f = FLOWS[Math.floor(Math.random()*FLOWS.length)];
+  const from = MACHINES.find(m=>m.id===f[0]), to = MACHINES.find(m=>m.id===f[1]);
+  if (to.stale) return;
+  particles.push({ from, to, t:0, speed:.004+Math.random()*.004 });
+}, 700);
+
+// dust
+const dust = []; for (let i=0;i<80;i++) dust.push({x:Math.random(),y:Math.random(),s:Math.random()*1.5+.4,v:Math.random()*.00006+.00002});
+
+(function loop(t){
+  ctx.clearRect(0,0,W,H);
+  const ox = W*.42 + (mouse.x-.5)*24, oy = H*.42 + (mouse.y-.5)*14;
+
+  // dust
+  dust.forEach(d => { d.y -= d.v; if (d.y<0) d.y=1;
+    ctx.beginPath(); ctx.arc(d.x*W, d.y*H, d.s, 0, 7);
+    ctx.fillStyle = "rgba(130,160,220,.18)"; ctx.fill(); });
+
+  // iso floor grid
+  ctx.strokeStyle = "rgba(130,160,220,.07)"; ctx.lineWidth = 1;
+  for (let gx=-6; gx<=6; gx++){
+    let a = iso(gx*60,-360,0,ox,oy), b = iso(gx*60,360,0,ox,oy);
+    ctx.beginPath(); ctx.moveTo(...a); ctx.lineTo(...b); ctx.stroke();
+    a = iso(-360,gx*60,0,ox,oy); b = iso(360,gx*60,0,ox,oy);
+    ctx.beginPath(); ctx.moveTo(...a); ctx.lineTo(...b); ctx.stroke();
+  }
+
+  // link lines under machines
+  FLOWS.forEach(([a,b]) => {
+    const ma = MACHINES.find(m=>m.id===a), mb = MACHINES.find(m=>m.id===b);
+    const A = [ma.x*W, ma.y*H], B = [mb.x*W, mb.y*H];
+    ctx.beginPath(); ctx.moveTo(...A); ctx.lineTo(...B);
+    ctx.strokeStyle = mb.stale ? "rgba(255,207,122,.10)" : "rgba(127,212,255,.16)";
+    ctx.lineWidth = 1.5; ctx.setLineDash([4,8]); ctx.lineDashOffset = -t/30; ctx.stroke(); ctx.setLineDash([]);
+  });
+
+  // machines (draw back-to-front by y)
+  const sorted = [...MACHINES].sort((a,b) => a.y - b.y);
+  sorted.forEach(m => {
+    const cx = m.x*W, cy = m.y*H, s = m.w;
+    m._hit = [cx-s*.9, cy-s*1.5, cx+s*.9, cy+s*.5];
+    const glow = m.stale ? .25 : .9;
+    const colors = { top:`rgba(30,38,58,${glow})`, left:`rgba(20,26,42,${glow})`, right:`rgba(14,18,30,${glow})` };
+    // body
+    box(ctx, -s/2, -s/2, 0, s, s, m.h, cx, cy, colors);
+    // inner load core
+    const lvl = m.ram ? m.ram[0]/m.ram[1] : 0;
+    if (lvl > 0) box(ctx, -s/4, -s/4, 2, s/2, s/2, Math.max(4, m.h*lvl*.85), cx, cy,
+      { top:m.color+"55", left:m.color+"33", right:m.color+"22" });
+    // top plate LEDs
+    const [lx,ly] = iso(-s/2+10, -s/2+10, m.h, cx, cy);
+    for (let i=0;i<3;i++){
+      const on = Math.sin(t/300 + i*2 + cx) > (m.stale ? 1.1 : -0.2);
+      ctx.beginPath(); ctx.arc(lx+i*9, ly, 2.2, 0, 7);
+      ctx.fillStyle = on ? m.color : "rgba(80,90,120,.5)";
+      if (on) { ctx.shadowColor = m.color; ctx.shadowBlur = 8; }
+      ctx.fill(); ctx.shadowBlur = 0;
+    }
+    // selection ring
+    if (selected === m) {
+      ctx.beginPath(); ctx.ellipse(cx, cy + 6, s*.85, s*.45, 0, 0, 7);
+      ctx.strokeStyle = m.color; ctx.lineWidth = 1.5; ctx.setLineDash([5,5]); ctx.lineDashOffset = -t/40; ctx.stroke(); ctx.setLineDash([]);
+    }
+    // floating label
+    const bobY = Math.sin(t/900 + cx) * 3;
+    ctx.font = "700 12px Menlo"; ctx.textAlign = "center";
+    ctx.fillStyle = m.stale ? "rgba(255,207,122,.85)" : "#e9edf8";
+    ctx.fillText(m.name, cx, cy - m.h - 34 + bobY);
+    ctx.font = "10px Menlo"; ctx.fillStyle = "rgba(142,151,181,.9)";
+    ctx.fillText(m.stale ? "STALE" : `${m.req} REQ · ${m.models.length} MODELS`, cx, cy - m.h - 20 + bobY);
+    // leader line
+    ctx.beginPath(); ctx.moveTo(cx, cy - m.h - 12 + bobY); ctx.lineTo(cx, cy - m.h + 2);
+    ctx.strokeStyle = "rgba(142,151,181,.4)"; ctx.lineWidth = 1; ctx.stroke();
+    // model chips floating above
+    m.models.forEach(([name], i) => {
+      const yy = cy - m.h - 58 - i*18 + Math.sin(t/800 + i + cx)*2.5;
+      ctx.font = "10px Menlo";
+      const w = ctx.measureText(name).width + 16;
+      ctx.beginPath(); ctx.roundRect(cx - w/2, yy - 10, w, 14, 7);
+      ctx.fillStyle = "rgba(17,22,36,.85)"; ctx.fill();
+      ctx.strokeStyle = m.color + "66"; ctx.stroke();
+      ctx.fillStyle = "rgba(233,237,248,.85)"; ctx.fillText(name, cx, yy);
+    });
+  });
+
+  // flow particles
+  for (let i=particles.length-1;i>=0;i--){
+    const p = particles[i]; p.t += p.speed;
+    if (p.t >= 1) { particles.splice(i,1); continue; }
+    const A = [p.from.x*W, p.from.y*H - 20], B = [p.to.x*W, p.to.y*H - 20];
+    const x = A[0]+(B[0]-A[0])*p.t, y = A[1]+(B[1]-A[1])*p.t - Math.sin(p.t*Math.PI)*30;
+    ctx.beginPath(); ctx.arc(x, y, 2.6, 0, 7);
+    ctx.fillStyle = "#fff"; ctx.shadowColor = "#7fd4ff"; ctx.shadowBlur = 10; ctx.fill(); ctx.shadowBlur = 0;
+  }
+
+  requestAnimationFrame(loop);
+})(0);
+</script>
+</body>
+</html>

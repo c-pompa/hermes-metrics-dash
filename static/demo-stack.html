@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Stack — infrastructure demo 2</title>
+<style>
+  :root {
+    --bg: #080a12; --panel: rgba(15, 19, 32, .8); --edge: rgba(140, 170, 230, .18);
+    --ink: #e9edf8; --dim: #8e97b5; --accent: #8fb4ff; --accent2: #7ff0c8; --warn: #ffcf7a;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body { background: var(--bg); color: var(--ink); font: 13px/1.5 "SF Mono", ui-monospace, Menlo, monospace; overflow: hidden; }
+  #scene { position: fixed; inset: 0; z-index: 0; }
+  header { position: relative; z-index: 3; display: flex; align-items: baseline; gap: 16px; padding: 20px 28px; flex-wrap: wrap; }
+  .logo { font-size: 16px; letter-spacing: .3em; }
+  .logo b { color: var(--accent); }
+  .sub { color: var(--dim); font-size: 10px; letter-spacing: .22em; }
+  .hint { margin-left: auto; color: var(--dim); font-size: 10px; letter-spacing: .12em; }
+
+  .kpis { position: fixed; z-index: 3; left: 28px; top: 84px; display: grid; gap: 10px; }
+  .kpi { background: var(--panel); border: 1px solid var(--edge); border-radius: 12px; padding: 10px 16px;
+    backdrop-filter: blur(12px); min-width: 170px; opacity: 0; transform: translateX(-24px);
+    animation: slidein .6s cubic-bezier(.2,.9,.3,1.1) forwards; }
+  .kpi:nth-child(2){animation-delay:.08s}.kpi:nth-child(3){animation-delay:.16s}.kpi:nth-child(4){animation-delay:.24s}
+  @keyframes slidein { to { opacity: 1; transform: none; } }
+  .kpi .k { font-size: 9px; letter-spacing: .25em; color: var(--dim); }
+  .kpi .v { font-size: 22px; font-weight: 700; color: var(--ink); }
+  .kpi .v span { font-size: 11px; color: var(--dim); font-weight: 400; }
+
+  #layerinfo { position: fixed; z-index: 3; right: 28px; top: 84px; width: 300px; background: var(--panel);
+    border: 1px solid var(--edge); border-radius: 12px; padding: 16px 18px; backdrop-filter: blur(12px);
+    opacity: 0; transform: translateX(24px); animation: slidein .6s .2s cubic-bezier(.2,.9,.3,1.1) forwards; }
+  #layerinfo h2 { font-size: 10px; letter-spacing: .3em; color: var(--dim); margin-bottom: 10px; }
+  #layerinfo .lname { font-size: 17px; letter-spacing: .12em; margin-bottom: 6px; transition: color .3s; }
+  #layerinfo .ldesc { font-size: 11px; color: var(--dim); line-height: 1.6; }
+  #layerinfo .litems { margin-top: 10px; font-size: 11px; }
+  #layerinfo .litems div { padding: 3px 0; border-bottom: 1px solid rgba(140,170,230,.08); }
+
+  .ticker { position: fixed; left: 0; right: 0; bottom: 0; z-index: 4; height: 44px; display: flex; align-items: center;
+    background: rgba(9,11,20,.88); border-top: 1px solid var(--edge); backdrop-filter: blur(10px); overflow: hidden; }
+  .ticker .inner { display: flex; gap: 48px; white-space: nowrap; animation: tick 42s linear infinite; padding-left: 100vw; }
+  @keyframes tick { to { transform: translateX(-100%); } }
+  .tick-item { color: var(--dim); font-size: 11px; }
+  .tick-item b { color: var(--accent2); } .tick-item .t { color: var(--accent); }
+  #fallback { display: none; position: fixed; inset: 0; z-index: 5; place-items: center; color: var(--dim); text-align: center; }
+</style>
+</head>
+<body>
+<div id="scene"></div>
+<div id="fallback"><div>three.js failed to load (offline?) — The Stack needs the CDN.</div></div>
+
+<header>
+  <div class="logo">THE <b>STACK</b></div>
+  <div class="sub">HARDWARE ▸ RUNTIME ▸ MODELS ▸ AGENTS ▸ USAGE</div>
+  <div class="hint">drag to orbit · click a layer to isolate</div>
+</header>
+
+<div class="kpis">
+  <div class="kpi"><div class="k">REQUESTS / 24H</div><div class="v">135 <span>12 sessions</span></div></div>
+  <div class="kpi"><div class="k">MEDIAN THROUGHPUT</div><div class="v">16.5 <span>t/s · max 45.4</span></div></div>
+  <div class="kpi"><div class="k">MODELS RESIDENT</div><div class="v">7 <span>across 3 hosts</span></div></div>
+  <div class="kpi"><div class="k">COST / 24H</div><div class="v">$0.42 <span>cloud only — local = $0</span></div></div>
+</div>
+
+<div id="layerinfo">
+  <h2>LAYER INSPECTOR</h2>
+  <div class="lname" id="lname">FULL STACK</div>
+  <div class="ldesc" id="ldesc">Every inference request climbs this stack: scheduled by an agent, served by a model resident in LM Studio, on one of three machines. Click any layer to isolate it.</div>
+  <div class="litems" id="litems"></div>
+</div>
+
+<div class="ticker"><div class="inner" id="tickerInner"></div></div>
+
+<script type="module">
+const TICKS = [
+  ["12:06:11","mbp","supergemma4-26b","18.2 t/s"], ["11:58:44","mbp","supergemma4-26b","16.9 t/s"],
+  ["11:52:03","mini","qwen3.6-35b-distill","45.4 t/s"], ["11:41:37","cloud","kimi-k2-thinking","31.0s"],
+  ["11:36:20","mbp","supergemma4-26b","15.8 t/s"], ["11:22:08","mbp","supergemma4-26b","error ×3"],
+];
+document.getElementById("tickerInner").innerHTML = TICKS.concat(TICKS).map(([t,h,m,d]) =>
+  `<span class="tick-item"><span class="t">${t}</span> ${h} ▸ ${m} ▸ <b>${d}</b></span>`).join("");
+
+const LAYERS = [
+  { name:"USAGE", color:0x7ff0c8, y:4.4, desc:"What the compute is for: Hermes agent sessions, MoA proposers/aggregators, Honcho deriver + dialectic, and embeddings.",
+    items:["aggregator — 36 req · med 22.4 t/s","dialectic — 98 req · med 16.5 t/s","deriver — WinPC worker","embeddings — nomic v1.5"] },
+  { name:"AGENTS", color:0xb18cff, y:3.3, desc:"Software that drives the models: the Hermes agent (fork), the metrics pipeline, and scheduled Honcho jobs.",
+    items:["hermes-agent (TUI + gateway)","MoA orchestration · preset 'test'","metrics hooks + forwarders","cron pipelines"] },
+  { name:"MODELS", color:0x8fb4ff, y:2.2, desc:"Resident model weights — card height is proportional to on-disk size. 7 models across 3 hosts, plus cloud APIs on demand.",
+    items:["qwen3.6-35b-distill · 19.8 GB","qwen3.6-27b-aggressive · 16.1 GB","supergemma4-26b · 15.2 GB","nomic-embed-v1.5 · 0.3 GB"] },
+  { name:"RUNTIME", color:0xffd479, y:1.1, desc:"LM Studio on each host, federated by LM Link — any host can serve models from the others. MLX + CUDA backends.",
+    items:["LM Studio (local inference)","LM Link federation","MLX (Apple silicon)","CUDA (RTX 5080)"] },
+  { name:"HARDWARE", color:0xff9d7a, y:0.0, desc:"Three machines: an always-on Mac mini (32 GB, gateway + dashboard), a MacBook Pro (24 GB, daily agent), and a Windows RTX 5080 worker.",
+    items:["mac mini · 32 GB unified","macbook pro · 24 GB unified","winpc · RTX 5080 · 16 GB VRAM"] },
+];
+
+let THREE;
+try { THREE = await import("https://unpkg.com/three@0.160.0/build/three.module.js"); }
+catch (e) { document.getElementById("fallback").style.display = "grid"; }
+
+if (THREE) {
+  const scene = new THREE.Scene();
+  scene.fog = new THREE.FogExp2(0x080a12, 0.02);
+  const cam = new THREE.PerspectiveCamera(50, innerWidth/innerHeight, .1, 200);
+  const ren = new THREE.WebGLRenderer({ antialias:true, alpha:true });
+  ren.setSize(innerWidth, innerHeight); ren.setPixelRatio(Math.min(devicePixelRatio,2));
+  document.getElementById("scene").appendChild(ren.domElement);
+  scene.add(new THREE.AmbientLight(0x334466, 1.6));
+  const key = new THREE.DirectionalLight(0xffffff, 1.2); key.position.set(6,10,4); scene.add(key);
+
+  function textSprite(text, color="#e9edf8", size=44) {
+    const c = document.createElement("canvas"); c.width = 1024; c.height = 128;
+    const g = c.getContext("2d");
+    g.font = `700 ${size}px Menlo`; g.textAlign = "center"; g.textBaseline = "middle";
+    g.shadowColor = color; g.shadowBlur = 18; g.fillStyle = color;
+    g.fillText(text, 512, 64);
+    const tex = new THREE.CanvasTexture(c);
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
+    sp.scale.set(4.6, .58, 1);
+    return sp;
+  }
+
+  const root = new THREE.Group(); scene.add(root);
+  const layerGroups = [];
+  LAYERS.forEach((L, li) => {
+    const g = new THREE.Group(); g.position.y = L.y; root.add(g);
+    // slab
+    const slab = new THREE.Mesh(new THREE.BoxGeometry(7.4,.14,3.4),
+      new THREE.MeshStandardMaterial({ color: L.color, transparent:true, opacity:.10, roughness:.4 }));
+    g.add(slab);
+    const edge = new THREE.LineSegments(new THREE.EdgesGeometry(slab.geometry),
+      new THREE.LineBasicMaterial({ color: L.color, transparent:true, opacity:.6 }));
+    g.add(edge);
+    // label
+    const label = textSprite(L.name, "#" + L.color.toString(16).padStart(6,"0"));
+    label.position.set(-4.6, .1, 0); g.add(label);
+    g.userData = { L, slab, edge, li };
+    layerGroups.push(g);
+  });
+
+  // hardware boxes on the bottom slab
+  const hw = [["MINI",-2.2,0x7fd4ff],["MBP",0,0x9dffb0],["WINPC",2.2,0xffcf7a]];
+  hw.forEach(([name,x,color]) => {
+    const b = new THREE.Mesh(new THREE.BoxGeometry(1.5,.5,.9),
+      new THREE.MeshStandardMaterial({ color, transparent:true, opacity:.75, roughness:.3 }));
+    b.position.set(x, .32, 0); layerGroups[4].add(b);
+    const l = textSprite(name, "#e9edf8", 52); l.scale.set(1.5,.22,1); l.position.set(x,.68,0); layerGroups[4].add(l);
+  });
+  // model cards standing on the MODELS slab
+  const modelCards = [["35b-distill",1.9],["27b-aggr",1.6],["gemma-26b",1.5],["nomic",0.35],["kimi-k2",0.9]];
+  modelCards.forEach(([name,h],i) => {
+    const x = -2.6 + i*1.3;
+    const c = new THREE.Mesh(new THREE.BoxGeometry(1.0,h,.16),
+      new THREE.MeshStandardMaterial({ color:0x8fb4ff, transparent:true, opacity:.55, roughness:.3 }));
+    c.position.set(x, h/2 + .07, 0); layerGroups[2].add(c);
+    const l = textSprite(name, "#cfe0ff", 44); l.scale.set(1.2,.18,1); l.position.set(x, h + .3, 0); layerGroups[2].add(l);
+  });
+  // agent glyphs
+  ["HERMES","MoA","HONCHO"].forEach((name,i) => {
+    const l = textSprite(name, "#d9c5ff", 48); l.scale.set(1.7,.26,1);
+    l.position.set(-2.2 + i*2.2, .35, 0); layerGroups[3].add(l);
+    const b = new THREE.Mesh(new THREE.OctahedronGeometry(.22),
+      new THREE.MeshStandardMaterial({ color:0xb18cff, emissive:0xb18cff, emissiveIntensity:.6 }));
+    b.position.set(-2.2 + i*2.2, .18, 0); layerGroups[3].add(b);
+  });
+  // usage counters floating at top
+  let usageSprites = [];
+  LAYERS[0].items.forEach((txt,i) => {
+    const l = textSprite(txt, "#9ff5d8", 40); l.scale.set(2.6,.2,1);
+    l.position.set(-1.2 + (i%2)*3.4, .3 + Math.floor(i/2)*.4, 0); layerGroups[0].add(l); usageSprites.push(l);
+  });
+
+  // rising request pulses
+  const pulses = [];
+  setInterval(() => {
+    const x = (Math.random()-.5)*5, z = (Math.random()-.5)*2.4;
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(.045,.045,.5,8),
+      new THREE.MeshBasicMaterial({ color:0xffffff }));
+    m.position.set(x, -.5, z); root.add(m);
+    pulses.push({ m, v:.03+Math.random()*.03 });
+  }, 800);
+
+  // interaction
+  const ray = new THREE.Raycaster(), mouse = new THREE.Vector2(-9,-9);
+  let drag = false, px0 = 0, rotY = .6, rotTarget = .6, isolated = -1;
+  addEventListener("pointerdown", e => { drag = true; px0 = e.clientX; });
+  addEventListener("pointerup", () => drag = false);
+  addEventListener("pointermove", e => {
+    mouse.x = e.clientX/innerWidth*2-1; mouse.y = -(e.clientY/innerHeight)*2+1;
+    if (drag) { rotTarget += (e.clientX - px0)*.005; px0 = e.clientX; }
+  });
+  addEventListener("click", () => {
+    ray.setFromCamera(mouse, cam);
+    const hits = ray.intersectObjects(layerGroups.map(g => g.userData.slab));
+    if (hits.length) {
+      const idx = layerGroups.findIndex(g => g.userData.slab === hits[0].object);
+      isolated = isolated === idx ? -1 : idx;
+      const info = isolated >= 0 ? LAYERS[isolated] : null;
+      document.getElementById("lname").textContent = info ? info.name : "FULL STACK";
+      document.getElementById("lname").style.color = info ? "#"+info.color.toString(16).padStart(6,"0") : "";
+      document.getElementById("ldesc").textContent = info ? info.desc :
+        "Every inference request climbs this stack: scheduled by an agent, served by a model resident in LM Studio, on one of three machines.";
+      document.getElementById("litems").innerHTML = info ? info.items.map(i => `<div>${i}</div>`).join("") : "";
+    }
+  });
+
+  let autoRot = true;
+  addEventListener("pointerdown", () => autoRot = false, { once:true });
+  (function loop(t){
+    requestAnimationFrame(loop); t = t||0;
+    if (autoRot) rotTarget += .0016;
+    rotY += (rotTarget - rotY)*.06;
+    root.rotation.y = rotY;
+    root.position.y = -2.0;
+    layerGroups.forEach((g,i) => {
+      const target = isolated === -1 ? 1 : (isolated === i ? 1 : .12);
+      g.userData.slab.material.opacity += ((isolated===i? .22 : .10*target) - g.userData.slab.material.opacity)*.08;
+      g.userData.edge.material.opacity += ((isolated===-1||isolated===i ? .6 : .1) - g.userData.edge.material.opacity)*.08;
+      g.position.y = LAYERS[i].y + Math.sin(t*.001 + i)*0.03;
+    });
+    for (let i=pulses.length-1;i>=0;i--){ const p = pulses[i];
+      p.m.position.y += p.v;
+      p.m.material.opacity = Math.max(0, 1 - (p.m.position.y+2)/7); p.m.material.transparent = true;
+      if (p.m.position.y > 5.2) { root.remove(p.m); pulses.splice(i,1); } }
+    cam.position.set(Math.sin(0)*10.5, 3.6, 10.5);
+    cam.lookAt(0, .4, 0);
+    ren.render(scene, cam);
+  })();
+  addEventListener("resize", () => { cam.aspect = innerWidth/innerHeight; cam.updateProjectionMatrix(); ren.setSize(innerWidth, innerHeight); });
+}
+</script>
+</body>
+</html>

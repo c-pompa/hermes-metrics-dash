@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Model Harness — Build Status</title>
+<style>
+  :root{--bg:#0d1117;--card:#161b22;--border:#30363d;--fg:#e6edf3;--muted:#8b949e;--ok:#3fb950;--warn:#d29922;--bad:#f85149;--accent:#58a6ff}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--fg);font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",monospace;padding:24px;max-width:1100px}
+  h1{font-size:22px;margin-bottom:4px}
+  .sub{color:var(--muted);margin-bottom:20px}
+  h2{font-size:15px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:28px 0 10px;border-bottom:1px solid var(--border);padding-bottom:6px}
+  table{width:100%;border-collapse:collapse;margin-bottom:8px}
+  th{color:var(--muted);font-weight:600;font-size:12px;text-transform:uppercase;text-align:left;padding:6px 10px;border-bottom:1px solid var(--border)}
+  td{padding:7px 10px;border-bottom:1px solid var(--border);vertical-align:top}
+  tr:last-child td{border-bottom:none}
+  code{background:var(--card);border:1px solid var(--border);border-radius:4px;padding:1px 5px;font-size:12px}
+  .pill{display:inline-block;border-radius:12px;padding:1px 9px;font-size:11px;font-weight:700;text-transform:uppercase}
+  .ok{background:rgba(63,185,80,.15);color:var(--ok)}
+  .open{background:rgba(248,81,73,.15);color:var(--bad)}
+  .fix{background:rgba(88,166,255,.15);color:var(--accent)}
+  .wip{background:rgba(210,153,34,.15);color:var(--warn)}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:8px}
+  .kpi{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px 14px}
+  .kpi .v{font-size:22px;font-weight:700}
+  .kpi .l{color:var(--muted);font-size:12px;margin-top:2px}
+  .log li{margin:6px 0 6px 18px;color:var(--fg)}
+  .log .d{color:var(--muted);font-family:ui-monospace,monospace;font-size:12px}
+  .muted{color:var(--muted)}
+  .stamp{color:var(--muted);font-size:12px;margin-top:4px}
+  a{color:var(--accent);text-decoration:none}
+</style>
+</head>
+<body>
+<h1>Model Harness — Build Status</h1>
+<div class="sub">qwen3.8-27b-hermes on the MBP → dashboard on the mini ·
+<a href="/static/harness.html">data dashboard</a> · <a href="https://github.com/c-pompa/hermes-metrics-dash/blob/main/docs/HARNESS.md">docs/HARNESS.md</a></div>
+
+<div class="stamp" id="live-stamp">loading live data…</div>
+<div class="kpis" id="kpis"></div>
+<div class="kpis" id="byclass"></div>
+
+<h2>Plan Tasks</h2>
+<table>
+<tr><th>#</th><th>Task</th><th>Status</th><th>Evidence</th></tr>
+<tr><td>1</td><td>Config fingerprint (config → stable 12-hex fp)</td><td><span class="pill ok">done</span></td><td><code>harness/fingerprint.py</code>, fp <code>af15e942f6ca</code> in live data</td></tr>
+<tr><td>2</td><td>LM Studio probe client</td><td><span class="pill ok">done</span></td><td><code>harness/lmstudio.py</code> — skips bench when model unloaded</td></tr>
+<tr><td>3</td><td>Streaming TTFT / tok/s bench, 3 prompt classes × 2 reps</td><td><span class="pill ok">done</span></td><td><code>harness/bench.py</code> — pushed=6/6 per cycle</td></tr>
+<tr><td>4</td><td>Host telemetry (thermal / swap / power)</td><td><span class="pill ok">done</span></td><td><code>harness/telemetry.py</code></td></tr>
+<tr><td>5</td><td>Mini-side store + <code>/api/harness/*</code></td><td><span class="pill ok">done</span></td><td><code>harness_store.py</code>; samples/best/mark live on :8899</td></tr>
+<tr><td>6</td><td>Dashboard page + JS tests</td><td><span class="pill ok">done</span></td><td><code>static/harness.html</code> + <code>harness.js</code>; <code>node --test tests/harness-page.test.js</code> 3/3 pass</td></tr>
+<tr><td>7</td><td>MBP collector daemon</td><td><span class="pill ok">done</span></td><td>LaunchAgent <code>ai.hermes.lmharness</code> state=running; flock crash-safe loop</td></tr>
+<tr><td>8</td><td>Deploy to mini + collector live end-to-end</td><td><span class="pill ok">done</span></td><td>55 rows / 48h; latest sample &lt;20 min old; batch-envelope + reasoning-token bugs fixed (50/50 tests)</td></tr>
+<tr><td>9</td><td>A/B runner + docs + skill update</td><td><span class="pill ok">done</span></td><td><code>harness/ab.py</code>, <code>docs/HARNESS.md</code>, skill Quick Reference + harness procedure added 2026-09-28</td></tr>
+</table>
+
+<h2>Issues Board</h2>
+<table>
+<tr><th>ID</th><th>Issue</th><th>Status</th><th>Detail / next step</th></tr>
+<tr><td>H-1</td><td>Batch envelope at <code>/ingest</code> rejected batched pushes</td><td><span class="pill fix">fixed</span></td><td>Fixed in prior session; 50/50 targeted tests pass, live pushes 6/6.</td></tr>
+<tr><td>H-2</td><td>Reasoning tokens not counted in bench token totals</td><td><span class="pill fix">fixed</span></td><td>Fixed in prior session; verified in live rows.</td></tr>
+<tr><td>H-3</td><td>Empty-200 streams produced fake metrics</td><td><span class="pill fix">fixed</span></td><td>Bench degrades to None instead of fake numbers; pitfall recorded in skill.</td></tr>
+<tr id="h4"><td>H-4</td><td><b>TTFT tail is huge</b>: avg 39–81s, p95 129s while decode is healthy ~18 tok/s</td><td><span class="pill fix">fix live</span></td><td>Root cause confirmed (2026-09-28): hermes runs parallel=1 on the MBP — short prompts see TTFT 120s+ purely queueing behind router clients' prefills (live evidence: 64-token prompt, TTFT 137.5s, decode 18.2 tok/s). <b>Fix applied 2026-09-28 (user-approved):</b> hermes reloaded at <code>--parallel 2</code> (ctx 87040 preserved); per-model default config on the MBP updated to ctx 87040 / parallel 2 so JIT loads match (backup kept). A/B in flight: A=<code>af15e942f6ca</code> (parallel 1) vs B=<code>df5432b5676d</code> (parallel 2) via <code>python3 -m harness.ab</code>.</td></tr>
+<tr><td>H-5</td><td>Only one real fingerprint in the data — no A/B baseline yet</td><td><span class="pill fix">resolved</span></td><td>A/B runner verified (self-compare: n=25/side, delta +0.00). Sides (6-key fp, parallel-aware): parallel 1 = <code>2222775ed788</code>, parallel 2 = <code>df5432b5676d</code> (73 rows over 6h vs 6 parallel-1 rows — the no-TTL parallel-2 instance carries most cycles; TTFT 0.65–0.9s on those). Pre-fp-extension rows (5-key) = <code>af15e942f6ca</code> — historical baseline only. <b>Caveat:</b> parallel 2 does not persist across JIT reloads while LM Studio holds its in-memory last-used config (87040/1); a one-off LM Studio app restart on the MBP makes the saved default (87040/2) authoritative — pending user go-ahead (brief node blip).</td></tr>
+<tr id="h8"><td>H-8</td><td>Probe gap: fingerprint can't see the levers we can actually tune (parallel, kv-quant, flash-attn — <code>lms load</code> has no kv-q flag, <code>/models</code> doesn't report them)</td><td><span class="pill fix">fixed</span></td><td><code>harness.lmstudio.get_engine_parallel()</code> reads the local <code>lms ps --json</code> cluster view (prefers the primary instance over <code>:N</code> siblings, degrades to None never guesses); <code>parallel</code> added to <code>_FP_KEYS</code>. Suite: 299 tests OK. Per-model saved default on the MBP updated so JIT loads use ctx 87040 / parallel 2 (backup: <code>*.bak.20260928_parallel_fix</code>).</td></tr>
+<tr id="h6"><td>H-6</td><td>Degenerate reps (empty streams) stored as junk rows: 43 of 61 samples had tps=None</td><td><span class="pill fix">fixed</span></td><td>Collector filters placeholders; store + ingest reject them (defense in depth); 49 junk rows purged from sqlite. Tests: 45/45 (3 new regression tests).</td></tr>
+<tr id="h7"><td>H-7</td><td>Bench 180s timeout shorter than real queueing TTFT → whole cycles go degenerate (6/6 reps timed out, <code>pushed=0/0 failed=6</code>)</td><td><span class="pill fix">fixed</span></td><td>Mechanism: hermes instance runs parallel=1, so a router client's long prefill (minutes) blocks everything behind it; the collector abandons at 180s but the server keeps prefilling, so subsequent reps queue behind it. Reps are not "empty" — they time out. Fix: <code>run_once</code> timeout 180→420s; H-6 guard correctly kept the junk out of the store. Engine verified healthy after queue drained (TTFT 9.4s on a short prompt when idle).</td></tr>
+</table>
+
+<h2>Build Log</h2>
+<ul class="log">
+<li><span class="d">2026-09-28 (night, 2)</span> — Persistence catch: JIT churn resurrected hermes at 87040/1 (LM Studio keeps last-used load config in memory; `unloadPreviousJITModelOnLoad` + 1h JIT TTL recycle instances). Probe now prefers the primary instance over `:N` siblings (that's the one serving the requested id) — 3 new tests. Parallel-1 rows will stamp as 6-key fp `2222775ed788`; compare 6-key↔6-key (`2222775ed788` vs `df5432b5676d`), treat `af15e942f6ca` as historical only. Durable fix = LM Studio app restart on the MBP (re-reads saved default 87040/2) — awaiting user go-ahead.</li>
+<li><span class="d">2026-09-28 (night)</span> — H-4 fix + H-8 probe extension (user-approved): hermes reloaded at <code>--parallel 2</code> on the MBP; found and fixed the JIT churn — per-model saved default was ctx 65536 / parallel 2, so every JIT load spawned mismatched instances; updated it to ctx 87040 / parallel 2 (backup kept). Probe extended via <code>lms ps --json</code> → <code>parallel</code> enters the fingerprint → side B <code>df5432b5676d</code> vs side A <code>af15e942f6ca</code>. A/B running; suite 296 OK. Collector restarted (pid 885) to stamp side-B rows.</li>
+<li><span class="d">2026-09-28 (late)</span> — Caveat review: H-4 root cause confirmed (parallel=1 queueing; live 64-token probe TTFT 137.5s) → mitigated via H-7 timeout; A/B runner verified against live data (self-compare n=25/side, delta +0.00); <b>new H-8:</b> probe gap — fp can't see parallel/kv-quant/flash-attn (<code>/models</code> doesn't report them, no <code>lms load</code> kv-q flag), so no silent config change was made; H-5 stays open pending a real fp-visible change or probe extension. Pages opened in browser for review.</li>
+<li><span class="d">2026-09-28 (evening)</span> — First post-restart cycle: <code>pushed=0/0 failed=6</code>, H-6 guard caught all 6 timed-out reps (no junk stored). Root-caused the "empty streams": LM Studio on the mini (:1234) fronts a cluster view — hermes lives on the MBP at parallel=1 and was grinding a router client's prefill; bench's 180s timeout < real TTFT under queueing. Unloaded a wedged gemma prefill on the mini, reloaded hermes on the MBP (ctx 87040 / parallel 1 preserved), raised bench timeout to 420s (H-7). Verifying next cycle pushes valid rows.</li>
+<li><span class="d">2026-09-28 (later)</span> — Page review caught 3 issues, all fixed: (B-1) page assumed newest-first samples but API returns ascending → wrong "latest"/"current fp"; (B-2) H-6: 43/61 rows were degenerate placeholders (empty streams) → collector filters, store+ingest reject, 49 junk rows purged, +3 regression tests (45/45); (B-3) dashboard restarted on mini to load the guard — live-verified harness_ingested:0 for a placeholder push.</li>
+<li><span class="d">2026-09-28</span> — Task 9 closed: ab.py verified live (24h compare, identical sides as expected), docs/HARNESS.md written, collector daemon confirmed running (pid 9294, pushed=6/6 ×5 cycles), skill <code>hermes-metrics-dash</code> updated with harness endpoints + optimize-loop procedure.</li>
+<li><span class="d">2026-09-28</span> — Verification sweep: JS tests 3/3, harness.html/harness.js 200 on mini, /api/harness/best returns leaderboard, live data 55 rows with fp af15e942f6ca.</li>
+<li><span class="d">2026-09-26</span> — Collector verified end-to-end: batch-envelope bug (H-1) and reasoning-token bug (H-2) fixed, 50/50 targeted tests OK, live rows landing on the mini.</li>
+<li><span class="d">2026-09-25</span> — Harness modules (fingerprint, lmstudio probe, bench, telemetry, store, collector) built with per-module unit tests, all seams monkeypatched.</li>
+</ul>
+
+<script>
+// values from the ingest API are escaped before interpolation (fingerprint
+// labels are user-settable via /api/harness/mark, so treat them as data)
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt = (x, d=1) => x == null ? '—' : (+x).toFixed(d);
+async function load(){
+  try{
+    const [s, b] = await Promise.all([
+      fetch('/api/harness/samples?hours=48&limit=5000').then(r=>r.json()),
+      fetch('/api/harness/best?n=10').then(r=>r.json())
+    ]);
+    // API returns ascending order — sort newest-first ourselves
+    const rows = (s.samples||[]).slice().sort((a,b)=>b.ts-a.ts);
+    // degenerate placeholders (junk rows predating the ingest guard)
+    const valid = rows.filter(r => r.tps != null || r.ttft_s != null);
+    const junk = rows.length - valid.length;
+    const tps = valid.map(r=>r.tps).filter(x=>x>0).sort((a,b)=>a-b);
+    const ttft = valid.map(r=>r.ttft_s).filter(x=>x>0).sort((a,b)=>a-b);
+    const pct = (a,p)=> a.length? a[Math.min(a.length-1,Math.floor(p*(a.length-1)))] : null;
+    const med = pct(tps,.5), p95 = pct(ttft,.95), avgT = ttft.length? ttft.reduce((a,c)=>a+c,0)/ttft.length : null;
+    const latest = valid[0] || null;
+    const ageMin = latest? ((Date.now()/1000 - latest.ts)/60) : null;
+    const fps = new Set(valid.map(r=>r.fp));
+    const stale = ageMin != null && ageMin > 30;
+    const stampEl = document.getElementById('live-stamp');
+    stampEl.textContent =
+      `live from /api/harness — ${valid.length} valid samples (48h)` +
+      (junk? `, ${junk} junk skipped` : '') +
+      `, ${fps.size} fp, latest ${ageMin!=null? fmt(ageMin,0) :'—'} min ago`;
+    stampEl.style.color = stale ? 'var(--warn)' : '';
+    if (stale) stampEl.textContent += ' — STALE: collector not landing data';
+    document.getElementById('kpis').innerHTML = [
+      [valid.length,'valid samples (48h)' + (junk? ` (+${junk} junk skipped)`:'')],
+      [fps.size,'distinct fingerprints'],
+      [med?fmt(med,1)+' t/s':'—','median decode'],
+      [avgT?fmt(avgT,1)+'s':'—','avg TTFT'],
+      [p95?fmt(p95,1)+'s':'—','p95 TTFT'],
+      [latest?esc(latest.fp):'—','current fp']
+    ].map(([v,l])=>`<div class="kpi"><div class="v">${v}</div><div class="l">${l}</div></div>`).join('');
+    const by = {};
+    b.best && b.best.forEach(r=>{ by[r.prompt_class] = r; });
+    document.getElementById('byclass').innerHTML = '<div class="kpi" style="grid-column:1/-1;padding:0;border:none"><table>' +
+      '<tr><th>prompt class</th><th>n</th><th>mean tok/s</th><th>avg TTFT</th><th>fp</th></tr>' +
+      (b.best||[]).map(r=>`<tr><td>${esc(r.prompt_class)}</td><td>${r.n}</td><td>${fmt(r.median_tps,2)}</td><td>${fmt(r.avg_ttft,1)}s</td><td><code>${esc(r.fp)}</code></td></tr>`).join('') +
+      '</table></div>';
+    // refresh H-4's detail from live data
+    if (p95 && p95 > 30){
+      document.getElementById('h4').innerHTML = '<td>H-4</td><td><b>TTFT tail is huge</b> (live: p95 ' + fmt(p95,1) + 's, avg ' + fmt(avgT,1) + 's vs decode ' + fmt(med,1) + ' tok/s)</td><td><span class="pill open">open</span></td><td>Queue contention / JIT wake on the MBP. Next: A/B with model pinned loaded → <code>python3 -m harness.ab</code></td>';
+    }
+  }catch(e){
+    document.getElementById('live-stamp').textContent = 'live data unavailable: ' + e.message;
+  }
+}
+load();
+</script>
+</body>
+</html>

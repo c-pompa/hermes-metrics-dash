@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Infra Briefing — infrastructure demo 3</title>
+<style>
+  :root {
+    --bg: #0a0c11; --panel: #11151f; --edge: #232b3d;
+    --ink: #edf1f8; --dim: #7d879e; --accent: #6ea8ff; --accent2: #4ade9d; --warn: #f5b45c; --violet: #a78bfa;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body { background: var(--bg); color: var(--ink); font: 13px/1.5 "SF Mono", ui-monospace, Menlo, monospace; }
+  header { display: flex; align-items: baseline; gap: 16px; padding: 20px 28px 14px; border-bottom: 1px solid var(--edge); flex-wrap: wrap; }
+  .logo { font-size: 15px; letter-spacing: .28em; }
+  .logo b { color: var(--accent); }
+  .sub { color: var(--dim); font-size: 10px; letter-spacing: .2em; }
+  .date { margin-left: auto; color: var(--dim); font-size: 10px; letter-spacing: .15em; }
+
+  .layout { display: grid; grid-template-columns: 300px 1fr 300px; gap: 16px; padding: 18px 28px 90px; }
+  @media (max-width: 1150px) { .layout { grid-template-columns: 1fr; } }
+  .col { display: grid; gap: 14px; align-content: start; }
+  .panel { background: var(--panel); border: 1px solid var(--edge); border-radius: 10px; padding: 14px 16px;
+    opacity: 0; transform: translateY(16px); animation: rise .5s ease-out forwards; }
+  .col .panel:nth-child(2) { animation-delay: .1s; } .col .panel:nth-child(3) { animation-delay: .2s; }
+  @keyframes rise { to { opacity: 1; transform: none; } }
+  .panel h2 { font-size: 10px; letter-spacing: .28em; color: var(--dim); margin-bottom: 12px; }
+
+  .hw { border-left: 3px solid var(--accent); }
+  .hw .name { font-size: 13px; letter-spacing: .1em; font-weight: 700; }
+  .hw .name .st { float: right; font-size: 9px; letter-spacing: .15em; color: var(--accent2); }
+  .hw .name .st.bad { color: var(--warn); }
+  .hw .spec { font-size: 10px; color: var(--dim); margin: 3px 0 8px; }
+  .hw .meter { height: 5px; background: #1c2333; border-radius: 3px; overflow: hidden; margin: 5px 0 2px; }
+  .hw .meter i { display: block; height: 100%; width: 0; background: var(--accent); transition: width 1.2s cubic-bezier(.2,.8,.2,1); }
+  .hw .m2 { display: flex; justify-content: space-between; font-size: 10px; color: var(--dim); }
+
+  .kpi { text-align: left; }
+  .kpi .v { font-size: 30px; font-weight: 800; letter-spacing: -.02em; }
+  .kpi .k { font-size: 10px; letter-spacing: .2em; color: var(--dim); margin-top: 2px; }
+  .kpi .d { font-size: 10px; color: var(--accent2); margin-top: 3px; }
+
+  .lead .row { margin: 10px 0; }
+  .lead .l1 { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 3px; }
+  .lead .l1 b { font-weight: 600; }
+  .lead .bar { height: 8px; background: #1c2333; border-radius: 4px; overflow: hidden; }
+  .lead .bar i { display: block; height: 100%; width: 0; border-radius: 4px; transition: width 1.4s cubic-bezier(.2,.8,.2,1); }
+
+  #sankeywrap { background: var(--panel); border: 1px solid var(--edge); border-radius: 10px; padding: 14px 16px;
+    opacity: 0; animation: rise .5s .15s ease-out forwards; }
+  #sankeywrap h2 { font-size: 10px; letter-spacing: .28em; color: var(--dim); margin-bottom: 4px; }
+  #sankey { width: 100%; height: 460px; display: block; }
+  .sankey-note { font-size: 10px; color: var(--dim); margin-top: 6px; }
+
+  .ticker { position: fixed; left: 0; right: 0; bottom: 0; z-index: 4; height: 44px; display: flex; align-items: center;
+    background: rgba(10,12,17,.92); border-top: 1px solid var(--edge); overflow: hidden; }
+  .ticker .inner { display: flex; gap: 48px; white-space: nowrap; animation: tick 42s linear infinite; padding-left: 100vw; }
+  @keyframes tick { to { transform: translateX(-100%); } }
+  .tick-item { color: var(--dim); font-size: 11px; }
+  .tick-item b { color: var(--accent2); } .tick-item .t { color: var(--accent); }
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">AI INFRASTRUCTURE <b>BRIEFING</b></div>
+  <div class="sub">HARDWARE + SOFTWARE USAGE · LOCAL FLEET</div>
+  <div class="date">2026-07-19</div>
+</header>
+
+<div class="layout">
+  <div class="col" id="hwcol">
+    <div class="panel"><h2>HARDWARE</h2></div>
+  </div>
+
+  <div class="col">
+    <div id="sankeywrap">
+      <h2>SOFTWARE USAGE FLOW — WORKLOAD ▸ MODEL ▸ SERVING HOST</h2>
+      <canvas id="sankey"></canvas>
+      <div class="sankey-note">ribbon width = 30-day sample share · flow = live direction · dashed = stale peer</div>
+    </div>
+  </div>
+
+  <div class="col">
+    <div class="panel kpi"><div class="v" id="k1">0</div><div class="k">REQUESTS / 24H</div><div class="d">12 agent sessions</div></div>
+    <div class="panel kpi"><div class="v" id="k2">0</div><div class="k">MEDIAN T/S</div><div class="d">peak 45.4 t/s · qwen distill</div></div>
+    <div class="panel kpi"><div class="v" id="k3">$0.00</div><div class="k">COST / 24H</div><div class="d">99.3% served locally at $0</div></div>
+    <div class="panel lead">
+      <h2>EFFICIENCY LEADERS · T/S PER GB</h2>
+      <div id="leadbars"></div>
+    </div>
+  </div>
+</div>
+
+<div class="ticker"><div class="inner" id="tickerInner"></div></div>
+
+<script>
+// ---------------- data ----------------
+const HW = [
+  { name:"MAC MINI", st:"ONLINE", spec:"Apple silicon · 32 GB unified · gateway + dashboard",
+    meters:[["memory", 21.4, 32],["load", 1.2, 8]], req:41 },
+  { name:"MACBOOK PRO", st:"ONLINE", spec:"Apple silicon · 24 GB unified · daily agent",
+    meters:[["memory", 17.1, 24],["load", 0.8, 8]], req:94 },
+  { name:"WINPC", st:"STALE 6H", spec:"Windows · RTX 5080 · 16 GB VRAM · CUDA worker",
+    meters:[["memory", 0, 16],["load", 0, 8]], req:0, bad:true },
+];
+const FLOWS = [ // [from, to, value, color] — sample shares (30d)
+  ["dialectic","supergemma4-26b",1629,"#a78bfa"],
+  ["aggregator","qwen3.6-35b-distill",1629,"#6ea8ff"],
+  ["embeddings","nomic-embed-v1.5",1630,"#4ade9d"],
+  ["deriver","qwen3.6-27b-aggr.",112,"#f5b45c"],
+  ["supergemma4-26b","mini + mbp",1629,"#a78bfa"],
+  ["qwen3.6-35b-distill","mini + mbp",1629,"#6ea8ff"],
+  ["nomic-embed-v1.5","mini + mbp",1630,"#4ade9d"],
+  ["qwen3.6-27b-aggr.","WinPC",112,"#f5b45c"],
+];
+const LEADERS = [ ["qwen3.6-35b-distill",2.29,"#6ea8ff"],["supergemma4-26b",1.11,"#a78bfa"],["qwen3.6-27b-aggr.",0.31,"#f5b45c"] ];
+const TICKS = [
+  ["12:06:11","mbp","supergemma4-26b","18.2 t/s"], ["11:58:44","mbp","supergemma4-26b","16.9 t/s"],
+  ["11:52:03","mini","qwen3.6-35b-distill","45.4 t/s"], ["11:41:37","cloud","kimi-k2-thinking","31.0s"],
+  ["11:36:20","mbp","supergemma4-26b","15.8 t/s"], ["11:22:08","mbp","supergemma4-26b","error ×3"],
+];
+
+// ---------------- hardware cards ----------------
+const hwcol = document.getElementById("hwcol");
+HW.forEach(h => {
+  const d = document.createElement("div"); d.className = "panel hw";
+  d.style.borderLeftColor = h.bad ? "var(--warn)" : "var(--accent)";
+  d.innerHTML = `<div class="name">${h.name}<span class="st ${h.bad?"bad":""}">${h.st}</span></div>
+    <div class="spec">${h.spec}</div>` +
+    h.meters.map(([k,v,max]) =>
+      `<div class="m2"><span>${k}</span><span>${k==="load"?v+" / "+max+" cores":v+" / "+max+" GB"}</span></div>
+       <div class="meter"><i data-w="${v/max*100}"></i></div>`).join("") +
+    `<div class="m2" style="margin-top:6px"><span>requests 24h</span><span>${h.req}</span></div>`;
+  hwcol.appendChild(d);
+});
+setTimeout(() => document.querySelectorAll(".meter i, .lead .bar i").forEach(b => b.style.width = b.dataset.w+"%"), 300);
+
+// ---------------- KPI count-ups ----------------
+function countUp(el, target, fmt) {
+  const t0 = performance.now(), dur = 1400;
+  (function f(t){ const p = Math.min(1,(t-t0)/dur), e = 1-Math.pow(1-p,3);
+    el.textContent = fmt(target*e); if (p<1) requestAnimationFrame(f); })(t0);
+}
+countUp(document.getElementById("k1"), 135, v => Math.round(v));
+countUp(document.getElementById("k2"), 16.5, v => v.toFixed(1));
+countUp(document.getElementById("k3"), 0.42, v => "$"+v.toFixed(2));
+
+// ---------------- leaders ----------------
+document.getElementById("leadbars").innerHTML = LEADERS.map(([m,y,c]) =>
+  `<div class="row"><div class="l1"><b>${m}</b><span>${y}</span></div>
+   <div class="bar"><i data-w="${y/2.29*100}" style="background:${c}"></i></div></div>`).join("");
+
+// ---------------- ticker ----------------
+document.getElementById("tickerInner").innerHTML = TICKS.concat(TICKS).map(([t,h,m,d]) =>
+  `<span class="tick-item"><span class="t">${t}</span> ${h} ▸ ${m} ▸ <b>${d}</b></span>`).join("");
+
+// ---------------- sankey ----------------
+const cv = document.getElementById("sankey"), ctx = cv.getContext("2d");
+let W, H;
+function size(){ const r = cv.getBoundingClientRect(); W = r.width; H = 460;
+  cv.width = W*2; cv.height = H*2; ctx.setTransform(2,0,0,2,0,0); layout(); }
+addEventListener("resize", size);
+
+const COLS = [ ["dialectic","aggregator","embeddings","deriver"],
+               ["supergemma4-26b","qwen3.6-35b-distill","nomic-embed-v1.5","qwen3.6-27b-aggr."],
+               ["mini + mbp","WinPC"] ];
+const COLCOLOR = { dialectic:"#a78bfa", aggregator:"#6ea8ff", embeddings:"#4ade9d", deriver:"#f5b45c",
+  "supergemma4-26b":"#a78bfa", "qwen3.6-35b-distill":"#6ea8ff", "nomic-embed-v1.5":"#4ade9d",
+  "qwen3.6-27b-aggr.":"#f5b45c", "mini + mbp":"#8b95ad", WinPC:"#f5b45c" };
+const nodes = {}; // name -> {x,y,w,h,col,c}
+function layout(){
+  const padX = 16, colW = (W - padX*2) / 3, total = 1629*3 + 112;
+  COLS.forEach((col, ci) => {
+    let y = 24;
+    col.forEach(name => {
+      const val = name === "mini + mbp" ? 1629*3 : (name === "WinPC" ? 112 :
+        (name.includes("27b") ? 112 : 1629 + (name==="embeddings"||name==="nomic-embed-v1.5")));
+      const h = Math.max(18, val/total*(H-70));
+      nodes[name] = { x: padX + ci*colW + (ci===2?colW-96:0), y, w: 96, h, ci };
+      y += h + 16;
+    });
+  });
+}
+
+function ribbon(a, b, val, color, t){
+  const A = nodes[a], B = nodes[b]; if (!A || !B) return;
+  const total = 1629*3 + 112;
+  const th = Math.max(2.5, val/total*(H-70));
+  const x0 = A.x + A.w, x1 = B.x, xm = (x0+x1)/2;
+  // find cumulative offset within node (simple: center it)
+  const y0 = A.y + A.h/2, y1 = B.y + B.h/2;
+  ctx.beginPath();
+  ctx.moveTo(x0, y0 - th/2);
+  ctx.bezierCurveTo(xm, y0 - th/2, xm, y1 - th/2, x1, y1 - th/2);
+  ctx.lineTo(x1, y1 + th/2);
+  ctx.bezierCurveTo(xm, y1 + th/2, xm, y0 + th/2, x0, y0 + th/2);
+  ctx.closePath();
+  const grad = ctx.createLinearGradient(x0,0,x1,0);
+  grad.addColorStop(0, color + "38"); grad.addColorStop(1, color + "1c");
+  ctx.fillStyle = grad; ctx.fill();
+  // animated flow dashes along the centerline
+  ctx.beginPath();
+  ctx.moveTo(x0, y0);
+  ctx.bezierCurveTo(xm, y0, xm, y1, x1, y1);
+  ctx.strokeStyle = color + "88"; ctx.lineWidth = 1.2;
+  ctx.setLineDash([3, 12]); ctx.lineDashOffset = -t/24; ctx.stroke(); ctx.setLineDash([]);
+}
+
+(function draw(t){
+  ctx.clearRect(0,0,W,H);
+  FLOWS.forEach(([a,b,v,c]) => ribbon(a,b,v,c,t));
+  // nodes
+  COLS.forEach((col, ci) => col.forEach(name => {
+    const n = nodes[name]; if (!n) return;
+    const stale = name === "WinPC";
+    ctx.beginPath(); ctx.roundRect(n.x, n.y, n.w, n.h, 5);
+    ctx.fillStyle = "#161c2a"; ctx.fill();
+    ctx.strokeStyle = (COLCOLOR[name]||"#8b95ad") + (stale?"55":"aa");
+    if (stale) ctx.setLineDash([4,3]);
+    ctx.lineWidth = 1.2; ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = stale ? "rgba(245,180,92,.9)" : "#edf1f8";
+    ctx.font = "700 10px Menlo"; ctx.textAlign = "center";
+    // wrap label
+    const label = name.length > 16 ? name.slice(0,15)+"…" : name;
+    ctx.fillText(label, n.x + n.w/2, n.y + n.h/2 + 3);
+  }));
+  // column headers
+  ["WORKLOAD","MODEL","SERVING HOST"].forEach((h,ci) => {
+    ctx.fillStyle = "#7d879e"; ctx.font = "9px Menlo"; ctx.textAlign = "center";
+    ctx.fillText(h, 16 + ci*(W-32)/3 + 48, 14);
+  });
+  requestAnimationFrame(draw);
+})(0);
+size();
+</script>
+</body>
+</html>

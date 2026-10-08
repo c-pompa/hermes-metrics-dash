@@ -1,0 +1,1095 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Compression &amp; Memory — Hermes Agent</title>
+<style>
+/* Hermes Agent dashboard theme: tokens and fonts lifted from
+   hermes_cli/web_dist (background #041c1c, midground #ffe6cb, foreground #fff,
+   series green #34d399). Font files are copies in static/hermes-*.woff2. */
+@font-face { font-family: "Rules Expanded"; src: url("hermes-RulesExpanded-Regular.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "Rules Expanded"; src: url("hermes-RulesExpanded-Bold.woff2") format("woff2"); font-weight: 700; font-display: swap; }
+@font-face { font-family: "Collapse"; src: url("hermes-Collapse-Regular.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "Collapse"; src: url("hermes-Collapse-Bold.woff2") format("woff2"); font-weight: 700; font-display: swap; }
+@font-face { font-family: "Mondwest"; src: url("hermes-Mondwest-Regular.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+:root {
+  --background: #041c1c;
+  --mid: #ffe6cb;
+  --mid-90: rgba(255,230,203,.9);
+  --mid-75: rgba(255,230,203,.75);
+  --mid-55: rgba(255,230,203,.55);
+  --mid-30: rgba(255,230,203,.3);
+  --mid-16: rgba(255,230,203,.16);
+  --mid-08: rgba(255,230,203,.08);
+  --fg: #ffffff;
+  --green: #34d399;
+  --amber: #ffac02;
+  --red: #ff7a6b;
+  --font-display: "Rules Expanded", system-ui, sans-serif;
+  --font-body: "Collapse", system-ui, sans-serif;
+  --font-title: "Mondwest", Georgia, serif;
+  --font-mono: "Courier Prime", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+* { box-sizing: border-box; margin: 0; }
+body {
+  background: linear-gradient(rgba(4,28,28,.9), rgba(4,28,28,.94)), url("hermes-bg.jpg") center / cover fixed no-repeat, var(--background);
+  color: var(--fg);
+  font: 15px/1.55 var(--font-body);
+  padding: 0 20px 40px; max-width: 1500px; margin: 0 auto;
+}
+a { color: var(--mid); text-decoration: none; }
+a:hover { text-decoration: underline; }
+.topbar {
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  padding: 18px 0 14px; border-bottom: 1px solid var(--mid-16); margin-bottom: 16px;
+}
+.topbar h1 {
+  font-family: var(--font-display); font-weight: 700; font-size: 22px;
+  text-transform: uppercase; letter-spacing: .14em; color: var(--fg); white-space: nowrap;
+}
+.meta-line { display: inline-flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: var(--mid-75); }
+.meta-line .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); display: inline-block; }
+.meta-line.stale .dot { background: var(--amber); }
+.spacer { flex: 1; }
+.controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 18px; }
+.chiplabel { font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: .12em; color: var(--mid-55); }
+.chip {
+  font-family: var(--font-mono); font-size: 11.5px; text-transform: uppercase; letter-spacing: .12em;
+  border: 1px solid var(--mid-30); background: transparent; color: var(--mid);
+  padding: 7px 14px; cursor: pointer;
+}
+.chip:hover { border-color: var(--mid-75); }
+.chip.on { background: var(--mid); color: var(--background); font-weight: 700; }
+.chiprow { display: inline-flex; gap: 6px; }
+.card {
+  background: rgba(4,28,28,.55); border: 1px solid var(--mid-16);
+  padding: 16px 18px; margin-bottom: 18px;
+}
+.sect-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.sect-head h2 {
+  font-family: var(--font-display); font-weight: 400; font-size: 16px;
+  text-transform: uppercase; letter-spacing: .16em; color: var(--fg);
+}
+.sect-head .meta { font-family: var(--font-mono); font-size: 10.5px; text-transform: uppercase; letter-spacing: .1em; color: var(--mid-55); }
+/* Ledger — the Hermes analytics stat style: value, dotted leader, caps label */
+.lrow { display: flex; align-items: baseline; gap: 12px; padding: 10px 0; flex-wrap: wrap; }
+.lrow + .lrow { border-top: 0; }
+.lval { font-family: var(--font-body); font-weight: 700; font-size: 21px; letter-spacing: .02em; white-space: nowrap; }
+.lval .lunit { font-size: 13px; font-weight: 400; color: var(--mid-75); }
+.leader { flex: 1; border-bottom: 1px dotted var(--mid-30); transform: translateY(-5px); min-width: 30px; }
+.llab { font-family: var(--font-mono); font-size: 12px; text-transform: uppercase; letter-spacing: .14em; color: var(--mid-90); display: inline-flex; align-items: center; gap: 8px; }
+.swatch { display: inline-block; width: 9px; height: 9px; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fill, minmax(370px, 1fr)); gap: 14px; }
+.panel { background: rgba(4,28,28,.45); border: 1px solid var(--mid-16); padding: 12px 14px; }
+.sess-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-bottom: 2px; }
+.sess-head .sid { font-family: var(--font-title); font-size: 15px; color: var(--fg); letter-spacing: .02em; }
+.sess-head .mdl { font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: .1em; color: var(--mid-55); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sess-stats { font-family: var(--font-mono); font-size: 10.5px; text-transform: uppercase; letter-spacing: .08em; color: var(--mid-55); margin-bottom: 6px; }
+.legend { display: flex; gap: 18px; margin-bottom: 8px; font-family: var(--font-mono); font-size: 10.5px; text-transform: uppercase; letter-spacing: .12em; color: var(--mid-75); }
+.legend .swatch { margin-right: 7px; }
+.model-row { margin: 10px 0; }
+.model-row .name { font-family: var(--font-title); font-size: 14px; color: var(--fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.model-row .bar-wrap { background: var(--mid-08); height: 10px; margin-top: 5px; overflow: hidden; }
+.model-row .bar { height: 100%; background: var(--mid); }
+.model-row .detail { font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: var(--mid-55); margin-top: 4px; }
+.note { font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: var(--mid-55); margin-top: 10px; }
+.beta-chip { font-family: var(--font-mono); font-size: 9px; text-transform: uppercase; letter-spacing: .15em; border: 1px solid var(--amber); color: var(--amber); padding: 1px 6px; margin-left: 8px; vertical-align: 1px; }
+.beta-wrap { position: relative; display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: .12em; color: var(--mid-55); }
+.beta-wrap .beta-chip { margin-left: 0; cursor: default; position: relative; }
+.beta-wrap .notif { position: absolute; top: -4px; right: -5px; width: 8px; height: 8px; border-radius: 50%; background: var(--amber); border: 1px solid var(--background); }
+.beta-pop {
+  display: none; position: absolute; right: 0; top: calc(100% + 8px); z-index: 20; width: 340px;
+  background: #062424; border: 1px solid var(--mid-30); padding: 12px 14px;
+  font-family: var(--font-mono); font-size: 11px; letter-spacing: .03em; text-transform: none;
+  color: var(--mid-90); box-shadow: 0 6px 18px rgba(0,0,0,.5); white-space: normal;
+}
+.beta-wrap:hover .beta-pop, .beta-pop:hover { display: block; }
+.beta-pop h4 { font-size: 10px; text-transform: uppercase; letter-spacing: .15em; color: var(--mid); margin: 0 0 6px; }
+.beta-pop .rec { color: var(--amber); margin: 8px 0; }
+.beta-pop .btns { display: flex; gap: 8px; margin-top: 10px; }
+.finding { display: flex; gap: 10px; align-items: baseline; padding: 7px 0; border-bottom: 1px dotted var(--mid-16); font-family: var(--font-mono); font-size: 11.5px; letter-spacing: .04em; color: var(--mid-90); }
+.finding:last-child { border-bottom: 0; }
+.finding .fico { width: 16px; text-align: center; flex: none; }
+.finding.crit .fico { color: var(--red); }
+.finding.warn .fico { color: var(--amber); }
+.finding.ok .fico { color: var(--green); }
+.finding.info .fico { color: var(--mid-55); }
+.finding .faction { color: var(--mid-55); }
+.finding .frule { font-family: var(--font-mono); font-size: 9px; text-transform: uppercase; letter-spacing: .15em; border: 1px solid var(--mid-30); color: var(--mid-55); padding: 1px 6px; margin-right: 8px; vertical-align: 1px; }
+[data-rule] { cursor: help; }
+.bucketrow { display: flex; align-items: center; gap: 12px; padding: 4px 0; font-family: var(--font-mono); font-size: 11px; letter-spacing: .06em; }
+.bucketrow .blab { width: 180px; flex: none; text-transform: uppercase; color: var(--mid-75); }
+.bucketrow .bbar { height: 8px; background: var(--mid); flex: none; }
+.bucketrow.crit .bbar { background: var(--red); }
+.bucketrow.warn .bbar { background: var(--amber); }
+.bucketrow .bcount { color: var(--mid-90); }
+.trend { display: flex; gap: 10px; align-items: baseline; padding: 7px 0; border-bottom: 1px dotted var(--mid-16); font-family: var(--font-mono); font-size: 11.5px; letter-spacing: .04em; color: var(--mid-90); flex-wrap: wrap; }
+.trend:last-child { border-bottom: 0; }
+.trend .fico { width: 16px; text-align: center; flex: none; }
+.trend.crit .fico { color: var(--red); }
+.trend.warn .fico { color: var(--amber); }
+.trend.info .fico { color: var(--mid-55); }
+.trend.ok .fico { color: var(--green); }
+.trend .tlabel { display: inline-block; flex: none; min-width: 190px; }
+.trend .tmeta { display: inline-block; flex: none; color: var(--mid-55); }
+.trend .tspark { flex: none; align-self: center; }
+.trend .tex { flex-basis: 100%; color: var(--mid-55); }
+#trendsTip { cursor: help; border-bottom: 1px dotted var(--mid-30); }
+.clickable { cursor: pointer; border-bottom: 1px dotted var(--mid-30); }
+.clickable:hover { border-bottom-color: var(--mid); }
+.sess-name { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .06em; color: var(--mid); margin: 2px 0 5px; }
+tr.evrow { cursor: pointer; }
+tr.evrow:hover td { background: rgba(255,230,203,.05); }
+tr.evdetail td { white-space: normal; padding: 10px 12px; background: rgba(4,28,28,.65); border-bottom: 1px solid var(--mid-16); }
+.evname { color: var(--mid); }
+.everr { color: var(--red); word-break: break-word; display: block; margin: 4px 0; }
+.evtl { margin-top: 6px; }
+.evtl div { padding: 1px 0; color: var(--mid-75); }
+.evtl .err { color: var(--red); }
+.evtl .cmp { color: var(--green); }
+svg text { font: 10px var(--font-mono); fill: var(--mid-55); letter-spacing: .05em; }
+svg .grid line { stroke: var(--mid-08); stroke-width: 1; }
+#tooltip {
+  position: fixed; pointer-events: none; display: none; z-index: 10;
+  background: #062424; border: 1px solid var(--mid-30);
+  padding: 8px 11px; font-family: var(--font-mono); font-size: 11px; min-width: 170px; max-width: 330px;
+  color: var(--fg); box-shadow: 0 6px 18px rgba(0,0,0,.45);
+}
+#tooltip .t-model { font-weight: 700; text-transform: uppercase; letter-spacing: .1em; margin-bottom: 4px; color: var(--mid); }
+#tooltip .row { display: flex; justify-content: space-between; gap: 14px; color: var(--mid-75); }
+#tooltip .row b { color: var(--fg); }
+#tooltip .tip-note { margin-top: 4px; color: var(--mid-55); font-size: 10px; }
+table { width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: 12px; }
+th { text-align: left; font-weight: 400; font-size: 10px; text-transform: uppercase; letter-spacing: .15em; color: var(--mid-55); padding: 6px 10px 6px 0; border-bottom: 1px solid var(--mid-16); }
+td { padding: 5px 10px 5px 0; border-bottom: 1px dotted var(--mid-16); white-space: nowrap; }
+td.good { color: var(--green); }
+td.bad { color: var(--red); }
+.empty { font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: var(--mid-55); padding: 22px; text-align: center; }
+@media (max-width: 640px) { .grid2 { grid-template-columns: 1fr; } .lval { font-size: 17px; } }
+</style>
+<link rel="stylesheet" href="/static/icons.css">
+</head>
+<body>
+<div class="topbar">
+  <h1>Compression &amp; Memory</h1>
+  <span class="meta-line" id="conn"><span class="dot"></span><span id="meta">loading…</span></span>
+  <span class="spacer"></span>
+  <a class="chip" href="/">← Overview</a>
+</div>
+<div class="controls">
+  <span class="chiplabel">Range</span>
+  <span class="chiprow" role="group" aria-label="time range">
+    <button class="chip" data-hours="1">1h</button>
+    <button class="chip on" data-hours="6">6h</button>
+    <button class="chip" data-hours="24">24h</button>
+  </span>
+  <span class="spacer"></span>
+  <button class="chip" id="tableToggle" aria-pressed="false">Events table</button>
+</div>
+
+<div class="card" id="ledger"></div>
+
+<div class="card">
+  <div class="sect-head"><h2>Health &amp; Recommendations</h2><span class="meta">rule checks over the selected range</span><span class="spacer"></span><span id="betaBadge"></span></div>
+  <div id="findings"></div>
+  <div class="sect-head" style="margin-top:16px"><h2 style="font-size:13px">Error Breakdown</h2><span class="meta" id="errtotal"></span></div>
+  <div id="errbuckets"></div>
+</div>
+
+<div class="card" id="trendsCard" hidden>
+  <div class="sect-head"><h2>Health Trends</h2><span class="meta">findings history · last 7 days</span><span class="spacer"></span><span class="meta" id="trendsTip" tabindex="0">how this works</span></div>
+  <div id="findingsTrends"></div>
+</div>
+
+<div class="card">
+  <div class="sect-head"><h2>Machine Memory</h2><span class="meta">used GB over time · dashed lines are capacity</span></div>
+  <div class="legend" id="memLegend"></div>
+  <div id="memChart"></div>
+</div>
+
+<div class="card">
+  <div class="sect-head"><h2>KV Pool Pressure</h2><span class="meta">tokens in flight per model vs its loaded context pool</span></div>
+  <div class="grid2" id="pool"></div>
+  <p class="note">Every parallel slot shares one KV pool of the loaded context length — requests fail when a line crosses its dashed cap.</p>
+</div>
+
+<div class="card">
+  <div class="sect-head"><h2>Agent Sessions</h2><span class="meta">context size per request · ▼ compaction · <span class="ico ico-x" aria-hidden="true"></span> error</span></div>
+  <div class="grid2" id="sessions"></div>
+</div>
+
+<div class="card">
+  <div class="sect-head"><h2>Model Residency</h2><span class="meta">LM Link pool</span></div>
+  <div class="grid2" id="residency"></div>
+  <p class="note">Sizes / context / parallel are load settings captured 2026-07-24 — LM Studio doesn't stream them. Residency is live from pool_status.</p>
+</div>
+
+<div class="card" id="tableSection" hidden>
+  <div class="sect-head"><h2>Events</h2></div>
+  <div id="eventsTable"></div>
+</div>
+
+<div id="tooltip" role="status"></div>
+
+<script>
+"use strict";
+// ---------------------------------------------------------------- constants
+const HOSTS = {
+  mini: { label: "mini",  color: "var(--mid)" },
+  mbp:  { label: "mbp",   color: "var(--green)" },
+};
+// LM Link device name -> host label (same defaults as forwarder.py LINK_LABELS).
+const deviceHost = d => /mini/i.test(d) ? "mini" : /mbp|macbook/i.test(d) ? "mbp" : d;
+// Load settings snapshot (2026-07-24): update when models are reloaded differently.
+// Mirrored in health_rules.py (server-side snapshots) — keep the two in sync.
+const LOAD_SETTINGS = {
+  "qwen3.6-35b-a3b-uncensored-genesis-hermes-v5": { gb: 18.23, ctx: 103424, parallel: 2 },
+  "supergemma4-26b-uncensored-mlx-v2":            { gb: 14.23, ctx: 64000,  parallel: 1 },
+  "text-embedding-nomic-embed-text-v1.5":         { gb: 0.08,  ctx: 2048,   parallel: null },
+};
+const COMPACT_DROP_RATIO = 0.85;   // next < 85% of prev → compaction
+const COMPACT_MIN_TOKENS = 4000;   // …and at least this many tokens freed
+const REFRESH_MS = 30000;
+// Hermes compression config mirrored for health checks (mini config.yaml +
+// research profile as of 2026-07-25): summarizer model and trigger threshold.
+const COMPRESSION_SUMMARIZER = "supergemma4-26b-uncensored-mlx-v2";
+const COMPRESSION_THRESHOLD_TOKENS = 40000;
+// Hover descriptions per rule id — shown as tooltips on the findings rows
+// (live list + Health Trends). Rule ids mirror health_rules.py RULE_LABELS
+// (server-side snapshots) — keep the two in sync.
+const RULE_DESCS = {
+  OK:  "All health checks passing: compression, pool pressure, capacity math, memory, errors, residency.",
+  R1:  "Compression summarizer residency — the model hermes uses to summarize/compact sessions must be loaded in the pool, or compactions fail as silent no-ops.",
+  R2:  "Compression not firing — an active session crossed the compression threshold without any compaction event.",
+  R3:  "Context overflow forecast — a session's recent growth rate projects it into the model's context pool within ~45 min.",
+  R4:  "Token waste / retry loop — a session burned >200k input tokens for a tiny output (in:out ratio > 50:1), the signature of a retry or failure loop.",
+  R5:  "Pool pressure peak — concurrent requests held ≥85% (warn) or ≥100% (crit) of a model's loaded KV context pool.",
+  R6:  "Parallel × p95 capacity — the model's parallel slot count × p95 session peak exceeds its context pool, so concurrent peaks can collide.",
+  R7:  "Host memory headroom — host RAM ≥90% (warn) or ≥97% (crit) used; near-full hosts fail model loads and can crash Metal.",
+  R8:  "Error burst — 3 or more API errors within the last 15 minutes.",
+  R9:  "Residency churn — a model flapped in/out of the LM Link pool (≥2 gaps in its pool_status trail): TTL eviction, engine crash, or link instability.",
+  R10: "Idle residency — a large model (>5 GB) stayed loaded but served no requests over the range; wasted memory.",
+  R11: "Agent-loop detector (beta) — ≥6 consecutive tool_calls with uniform context growth, the signature of an agent repeating the same probe.",
+  R12: "Guardrail-halt detector (beta) — hermes's tool guardrails blocked a repeated identical failing tool call and ended the turn (reason=guardrail_halt). Signal tailed from agent.log by forwarder.py.",
+  R13: "Empty-response / reasoning burn (beta) — calls with 0 visible assistant chars on a finished turn (finish stop/length), or reasoning tokens ≈ the whole completion: the model thinks without answering.",
+};
+
+let hours = 6;
+let records = [];
+let sessionNames = {};   // id -> title (from /api/session-names; cron titles carry the job name)
+let betaWidgets = {};    // /api/beta-widgets — lifecycle state for experimental rules
+let findingsHistory = null; // /api/findings?days=7 — null until history is available
+let lastSessions = null; // sessions map from the latest analyse(), for event drill-downs
+let lastEvents = [];     // events table rows, for click-to-expand
+
+// ---------------------------------------------------------------- utils
+const $ = (sel) => document.querySelector(sel);
+const fmtTok = (n) => n >= 1000 ? (n / 1000).toFixed(n >= 10000 ? 0 : 1) + "k" : String(Math.round(n));
+const fmtTime = (ts) => new Date(ts * 1000).toTimeString().slice(0, 5);
+const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const shortModel = (m) => String(m || "?").replace("qwen3.6-35b-a3b-", "q35-").replace("-uncensored", "").replace("-mlx-v2", "");
+
+function el(tag, attrs, children) {
+  const node = document.createElementNS("http://www.w3.org/2000/svg", tag);
+  for (const [k, v] of Object.entries(attrs || {})) node.setAttribute(k, v);
+  for (const c of children || []) node.appendChild(c);
+  return node;
+}
+function txt(x, y, content, attrs) {
+  const t = el("text", Object.assign({ x, y }, attrs || {}));
+  t.textContent = content;
+  return t;
+}
+
+const tooltip = $("#tooltip");
+function showTip(html, evt) {
+  tooltip.innerHTML = html;
+  tooltip.style.display = "block";
+  const pad = 14;
+  let x = evt.clientX + pad, y = evt.clientY + pad;
+  const r = tooltip.getBoundingClientRect();
+  if (x + r.width > innerWidth - 8) x = evt.clientX - r.width - pad;
+  if (y + r.height > innerHeight - 8) y = evt.clientY - r.height - pad;
+  tooltip.style.left = x + "px";
+  tooltip.style.top = y + "px";
+}
+function hideTip() { tooltip.style.display = "none"; }
+
+// ---------------------------------------------------------------- data
+async function fetchData() {
+  const [recRes, nameRes, betaRes, findRes] = await Promise.all([
+    fetch(`/api/recent?hours=${hours}&limit=20000`),
+    fetch("/api/session-names").catch(() => null),
+    fetch("/api/beta-widgets").catch(() => null),
+    fetch("/api/findings?days=7").catch(() => null),
+  ]);
+  const body = await recRes.json();
+  records = (body.records || []).slice().sort((a, b) => a.ts - b.ts);
+  if (nameRes && nameRes.ok) {
+    try { sessionNames = await nameRes.json(); } catch (e) { /* keep previous */ }
+  }
+  if (betaRes && betaRes.ok) {
+    try { betaWidgets = (await betaRes.json()).widgets || {}; } catch (e) { /* keep previous */ }
+  }
+  if (findRes && findRes.ok) {
+    try { findingsHistory = await findRes.json(); } catch (e) { /* keep previous */ }
+  }
+  render();
+}
+
+function analyse() {
+  const memSeries = {};        // host -> [{ts, used, total, cpu}]
+  const pool = new Map();      // device -> Map(model -> lastTs)
+  const poolHist = new Map();  // "device|model" -> [ts, ...] for churn detection
+  const sessions = new Map();  // session_id -> {points:[], errors:[], model, platform}
+  const allErrors = [];        // every error record, with or without a session
+  const guardrails = [];       // guardrail_halt / guardrail_block records (agent.log tail)
+  let latestPoolTs = 0;
+
+  for (const r of records) {
+    if (r.kind === "host_stats" && r.mem_used_gb != null) {
+      (memSeries[r.host] ||= []).push({ ts: r.ts, used: r.mem_used_gb, total: r.mem_total_gb, cpu: r.cpu_load });
+    } else if (r.kind === "pool_status" && r.model && r.device) {
+      if (!pool.has(r.device)) pool.set(r.device, new Map());
+      pool.get(r.device).set(r.model, r.ts);
+      const hk = r.device + "|" + r.model;
+      if (!poolHist.has(hk)) poolHist.set(hk, []);
+      poolHist.get(hk).push(r.ts);
+      latestPoolTs = Math.max(latestPoolTs, r.ts);
+    } else if (r.kind === "api" && r.session_id && r.input_tokens != null) {
+      const s = sessions.get(r.session_id) || { points: [], errors: [], model: r.model, platform: r.platform };
+      s.points.push({ ts: r.ts, tokens: r.input_tokens, out: r.output_tokens, dur: r.duration_s, tps: r.tps, model: r.model, fin: r.finish_reason, chars: r.assistant_content_chars, rt: r.reasoning_tokens });
+      s.model = r.model || s.model;
+      sessions.set(r.session_id, s);
+    } else if (r.kind === "guardrail_halt" || r.kind === "guardrail_block") {
+      guardrails.push({ ts: r.ts, kind: r.kind, sid: r.session_id || "", model: r.model, tool: r.label, error: r.error || "" });
+    } else if (r.kind === "error") {
+      allErrors.push({ ts: r.ts, error: r.error || r.event || "error", sid: r.session_id || "", model: r.model });
+      if (r.session_id) {
+        const s = sessions.get(r.session_id) || { points: [], errors: [], model: r.model, platform: r.platform };
+        s.errors.push({ ts: r.ts, error: r.error || r.event || "error", model: r.model, host: r.host, turn: r.turn_id, req: r.api_request_id });
+        sessions.set(r.session_id, s);
+      }
+    }
+  }
+
+  const compactions = [];
+  for (const [sid, s] of sessions) {
+    s.compactions = [];
+    for (let i = 1; i < s.points.length; i++) {
+      const prev = s.points[i - 1], cur = s.points[i];
+      if (cur.tokens < prev.tokens * COMPACT_DROP_RATIO && prev.tokens - cur.tokens >= COMPACT_MIN_TOKENS) {
+        const ev = { ts: cur.ts, sid, before: prev.tokens, after: cur.tokens };
+        s.compactions.push(ev);
+        compactions.push(ev);
+      }
+    }
+  }
+  // Residency: models seen in the last 2 sampling intervals (~2 min slack)
+  const live = new Map();
+  for (const [device, models] of pool) {
+    const keep = [...models].filter(([, ts]) => latestPoolTs - ts < 120);
+    if (keep.length) live.set(device, keep.map(([m]) => m));
+  }
+  return { memSeries, live, sessions, compactions, allErrors, guardrails, poolHist, pressure: poolPressure(sessions) };
+}
+
+// Concurrent-context demand per model: each request occupies its input_tokens
+// in the model's shared KV pool for its measured duration [ts-dur, ts].
+function poolDemand(reqs, t0, t1, samples) {
+  const pts = [];
+  for (let i = 0; i <= samples; i++) {
+    const t = t0 + (t1 - t0) / samples * i;
+    let demand = 0; const sids = [];
+    for (const q of reqs) if (q.start <= t && t <= q.end) { demand += q.tok; sids.push(q.sid); }
+    pts.push({ ts: t, val: demand, meta: { active: sids.length, sids: [...new Set(sids)] } });
+  }
+  return pts;
+}
+function poolPressure(sessions) {
+  const byModel = new Map();
+  for (const [sid, s] of sessions) for (const p of s.points) {
+    if (!p.model) continue;
+    if (!byModel.has(p.model)) byModel.set(p.model, []);
+    byModel.get(p.model).push({ start: p.ts - (p.dur || 0), end: p.ts, tok: p.tokens, sid });
+  }
+  const out = [];
+  for (const [model, reqs] of byModel) {
+    if (reqs.length < 2) continue;
+    const t0 = Math.min(...reqs.map(q => q.start)), t1 = Math.max(...reqs.map(q => q.end));
+    const pts = poolDemand(reqs, t0, t1, 240);
+    const cap = (LOAD_SETTINGS[model] || {}).ctx || null;
+    const peak = pts.reduce((a, p) => p.val > a.val ? p : a, pts[0]);
+    out.push({ model, pts, cap, peak });
+  }
+  return out.sort((a, b) => (b.peak.val / (b.cap || 1e9)) - (a.peak.val / (a.cap || 1e9)));
+}
+
+// ---------------------------------------------------------------- health rules
+// Each rule returns findings {sev: crit|warn|info|ok, text, action?}. Evidence
+// travels in the text so a reader never has to trust a bare verdict.
+function healthFindings(A, now) {
+  const F = [];
+  const liveModels = new Set([...A.live.values()].flat());
+
+  // R1 — compression summarizer must be resident, or compactions silently no-op
+  // (the 2026-07-24 outage mode).
+  if (liveModels.size && !liveModels.has(COMPRESSION_SUMMARIZER)) {
+    F.push({ rule: "R1", sev: "crit", text: `compression summarizer ${shortModel(COMPRESSION_SUMMARIZER)} is not loaded in the pool`, action: "load it (or repoint agents.compression) — compactions will fail as silent no-ops" });
+  }
+
+  // R2 — sessions past the compression threshold with no compaction yet.
+  for (const [sid, s] of A.sessions) {
+    if (!s.points.length) continue;
+    const last = s.points[s.points.length - 1];
+    if (now - last.ts > 1800) continue; // only currently-active sessions
+    const cap = (LOAD_SETTINGS[s.model] || {}).ctx;
+    if (last.tokens >= COMPRESSION_THRESHOLD_TOKENS && !s.compactions.length) {
+      const sev = cap && last.tokens >= cap * 0.7 ? "crit" : "warn";
+      F.push({ rule: "R2", sev, text: `session ${sid.slice(0, 24)}… at ${fmtTok(last.tokens)} tok (threshold ${fmtTok(COMPRESSION_THRESHOLD_TOKENS)}) with 0 compactions`, action: "verify compression is firing for this profile" });
+    }
+    // R3 — overflow forecast from recent growth (needs ≥3 points, positive slope).
+    if (cap && s.points.length >= 3) {
+      const recent = s.points.slice(-5);
+      const dt = recent[recent.length - 1].ts - recent[0].ts;
+      const dtok = recent[recent.length - 1].tokens - recent[0].tokens;
+      if (dt > 60 && dtok > 0) {
+        const etaMin = (cap * 0.95 - last.tokens) / (dtok / dt) / 60;
+        if (etaMin > 0 && etaMin < 45) {
+          F.push({ rule: "R3", sev: "warn", text: `session ${sid.slice(0, 24)}… growing ${fmtTok(dtok / dt * 60)} tok/min — reaches ${fmtTok(cap)} pool in ~${Math.round(etaMin)} min`, action: "expect compression or errors soon" });
+        }
+      }
+    }
+    // R4 — token waste: huge input for almost no output = a retry/failure loop.
+    const totIn = s.points.reduce((a, p) => a + p.tokens, 0);
+    const totOut = s.points.reduce((a, p) => a + (p.out || 0), 0);
+    if (totIn > 200000 && totOut > 0 && totIn / totOut > 50) {
+      F.push({ rule: "R4", sev: "warn", text: `session ${sid.slice(0, 24)}… burned Σin ${fmtTok(totIn)} for Σout ${fmtTok(totOut)} (${Math.round(totIn / totOut)}:1)`, action: "check for a retry loop" });
+    }
+    // R13 [BETA] — empty/reasoning-only responses: 0 visible chars on a
+    // finished turn, or reasoning tokens ~= the whole completion. Born from
+    // session 20260730_231425_926af4 (empty stop calls + sanitizer "healed
+    // empty non-final message" warnings on every later call).
+    if ((betaWidgets["empty-response-detector"] || {}).status !== "deleted") {
+      const empties = detectEmptyResponses(s);
+      if (empties.length >= 2) {
+        const burned = empties.reduce((a, p) => a + (p.rt || 0), 0);
+        const fins = [...new Set(empties.map(p => p.fin || "?"))].sort().join("/");
+        F.push({ rule: "R13", sev: empties.length >= 5 ? "crit" : "warn", beta: true,
+          text: `session ${sid.slice(0, 24)}… returned ${empties.length} empty responses (0 chars, finish=${fins}; burned ${fmtTok(burned)} reasoning tokens)`,
+          action: "the model is thinking without answering — check reasoning budget / sanitizer healing loop" });
+      }
+    }
+  }
+
+  // R12 [BETA] — guardrail-halt detector: hermes's tool guardrails blocked a
+  // repeated identical failing tool call and then ended the turn
+  // (reason=guardrail_halt). Signal: guardrail_halt / guardrail_block records
+  // tailed out of agent.log by forwarder.py.
+  if ((betaWidgets["guardrail-halt-detector"] || {}).status !== "deleted") {
+    const haltsBySid = new Map(), codesBySid = new Map();
+    for (const g of A.guardrails) {
+      const m = g.kind === "guardrail_halt" ? haltsBySid : codesBySid;
+      if (!m.has(g.sid)) m.set(g.sid, []);
+      m.get(g.sid).push(g);
+    }
+    for (const [sid, halts] of haltsBySid) {
+      const blocks = codesBySid.get(sid) || [];
+      const tools = [...new Set(blocks.map(b => b.tool).filter(Boolean))].sort();
+      const last = halts[halts.length - 1];
+      const detail = tools.length ? `; blocked tool(s): ${tools.join(", ")}` : "";
+      F.push({ rule: "R12", sev: halts.length >= 3 ? "crit" : "warn", beta: true,
+        text: `guardrail halted session ${(sid || "?").slice(0, 24)}… ${halts.length}× (last at ${fmtTime(last.ts)}${detail})`,
+        action: "the agent repeated an identical failing tool call until the guardrail ended the turn — inspect the session" });
+    }
+  }
+
+  // R11 [BETA] — agent-loop detector: born from session 20260725_214717_a544de,
+  // which repeated the same probes for 45 min (uniform ~600-tok steps, every
+  // call finish=tool_calls). Uniformity of growth is the discriminator —
+  // normal agent work varies its step sizes.
+  if ((betaWidgets["agent-loop-detector"] || {}).status !== "deleted") {
+    for (const [sid, s] of A.sessions) {
+      if (!s.points.length) continue;
+      const last = s.points[s.points.length - 1];
+      if (now - last.ts > 1800) continue;
+      const loop = detectAgentLoop(s);
+      if (loop) {
+        F.push({ rule: "R11", sev: "warn", beta: true, text: `possible agent loop: ${sid.slice(0, 24)}… — ${loop.steps + 1} consecutive tool_calls, uniform +${fmtTok(loop.med)}/step`, action: "inspect the session — it is likely repeating the same probe" });
+      }
+    }
+  }
+
+  // R5 — pool pressure peak.
+  const worst = A.pressure.find(p => p.cap);
+  if (worst) {
+    const pct = worst.peak.val / worst.cap * 100;
+    if (pct >= 100) F.push({ rule: "R5", sev: "crit", text: `${shortModel(worst.model)} pool overflowed: ${fmtTok(worst.peak.val)}/${fmtTok(worst.cap)} at ${fmtTime(worst.peak.ts)}`, action: "lower parallel, shrink sessions, or raise ctx" });
+    else if (pct >= 85) F.push({ rule: "R5", sev: "warn", text: `${shortModel(worst.model)} pool peaked at ${pct.toFixed(0)}% (${fmtTok(worst.peak.val)}/${fmtTok(worst.cap)})`, action: "watch concurrent sessions on this model" });
+  }
+  // R6 — capacity math: parallel × p95 session peak vs the pool.
+  const peaksByModel = new Map();
+  for (const [, s] of A.sessions) {
+    if (!s.model || !s.points.length) continue;
+    if (!peaksByModel.has(s.model)) peaksByModel.set(s.model, []);
+    peaksByModel.get(s.model).push(Math.max(...s.points.map(p => p.tokens)));
+  }
+  for (const [model, peaks] of peaksByModel) {
+    const cfg = LOAD_SETTINGS[model];
+    if (!cfg || !cfg.ctx || !cfg.parallel || peaks.length < 3) continue;
+    const p95 = peaks.sort((a, b) => a - b)[Math.floor((peaks.length - 1) * 0.95)];
+    if (cfg.parallel * p95 > cfg.ctx) {
+      F.push({ rule: "R6", sev: "warn", text: `${shortModel(model)}: parallel ${cfg.parallel} × p95 session ${fmtTok(p95)} = ${fmtTok(cfg.parallel * p95)} > pool ${fmtTok(cfg.ctx)}`, action: "lower parallel or raise loaded ctx" });
+    }
+  }
+
+  // R7 — host memory headroom.
+  for (const [host, pts] of Object.entries(A.memSeries)) {
+    const last = pts[pts.length - 1];
+    const pct = last.used / last.total * 100;
+    if (pct >= 97) F.push({ rule: "R7", sev: "crit", text: `${host} memory at ${pct.toFixed(0)}% (${last.used.toFixed(1)}/${last.total.toFixed(0)} GB)`, action: "model loads will fail; unload something" });
+    else if (pct >= 90) F.push({ rule: "R7", sev: "warn", text: `${host} memory at ${pct.toFixed(0)}% (${last.used.toFixed(1)}/${last.total.toFixed(0)} GB)` });
+  }
+
+  // R8 — error burst in the last 15 minutes.
+  const recentErrs = A.allErrors.filter(e => now - e.ts < 900);
+  if (recentErrs.length >= 3) {
+    F.push({ rule: "R8", sev: "warn", text: `${recentErrs.length} errors in the last 15 min`, action: "see error breakdown / events table" });
+  }
+
+  // R9 — residency churn: repeated gaps in a model's pool_status trail.
+  for (const [key, tss] of A.poolHist) {
+    if (tss.length < 5) continue;
+    let gaps = 0;
+    for (let i = 1; i < tss.length; i++) if (tss[i] - tss[i - 1] > 180) gaps++;
+    if (gaps >= 2) {
+      const [device, model] = key.split("|");
+      F.push({ rule: "R9", sev: "warn", text: `${shortModel(model)} flapped in/out of the pool ${gaps}× on ${device}`, action: "check TTL eviction or LM Link stability" });
+    }
+  }
+
+  // R10 — idle residency (only judged on longer ranges).
+  if (hours >= 6) {
+    const used = new Set(peaksByModel.keys());
+    for (const m of liveModels) {
+      const cfg = LOAD_SETTINGS[m] || {};
+      if (!used.has(m) && cfg.gb > 5) {
+        F.push({ rule: "R10", sev: "info", text: `${shortModel(m)} loaded (${cfg.gb} GB) but served no requests in range`, action: "unload if idle persists" });
+      }
+    }
+  }
+
+  const order = { crit: 0, warn: 1, info: 2 };
+  F.sort((a, b) => order[a.sev] - order[b.sev]);
+  if (!F.some(f => f.sev === "crit" || f.sev === "warn")) {
+    F.unshift({ rule: "OK", sev: "ok", text: "all health checks passing — compression, pool pressure, capacity math, memory, errors, residency" });
+  }
+  return F;
+}
+
+// [BETA] loop signature: >=6 trailing calls, all finish=tool_calls, strictly
+// growing context in near-identical steps (each within 45% of the median, or
+// 250 tok), no step over 4k. Returns {steps, med} or null.
+function detectAgentLoop(s) {
+  const pts = s.points.slice(-8);
+  if (pts.length < 6) return null;
+  if (!pts.every(p => p.fin === "tool_calls")) return null;
+  const deltas = [];
+  for (let i = 1; i < pts.length; i++) deltas.push(pts[i].tokens - pts[i - 1].tokens);
+  if (deltas.some(d => d <= 0 || d > 4000)) return null;
+  const sorted = [...deltas].sort((a, b) => a - b);
+  const med = sorted[Math.floor(sorted.length / 2)];
+  if (!deltas.every(d => Math.abs(d - med) <= Math.max(med * 0.45, 250))) return null;
+  return { steps: deltas.length, med };
+}
+
+// [BETA] empty-response signature: assistant_content_chars == 0 on a call that
+// did NOT end in tool_calls (a pure tool-call turn legitimately has 0 visible
+// chars). Pathological when the turn ended (finish stop/length) with nothing
+// visible, or when reasoning tokens are ~all of the completion (>=90%).
+// Mirror of health_rules.detect_empty_responses.
+function detectEmptyResponses(s) {
+  return s.points.filter(p => {
+    if (p.chars !== 0 || p.fin === "tool_calls") return false;
+    const rt = p.rt || 0, comp = p.out || 0;
+    return p.fin === "length" || p.fin === "stop" || (comp && rt >= 0.9 * comp);
+  });
+}
+
+const ERROR_BUCKETS = [
+  { label: "context exceeded", sev: "crit", re: /context.*exceed|context size/i },
+  { label: "model load failed", sev: "crit", re: /load|insufficient.*resources/i },
+  { label: "timeout", sev: "warn", re: /timeout|timed out/i },
+  { label: "connection", sev: "warn", re: /connect|refused|unreachable|socket|network/i },
+  { label: "empty response", sev: "warn", re: /empty.*response/i },
+  { label: "api request error", sev: "warn", re: /api_request_error/i },
+];
+function errorBuckets(allErrors) {
+  const counts = new Map();
+  for (const e of allErrors) {
+    const bucket = ERROR_BUCKETS.find(b => b.re.test(e.error)) || { label: "other", sev: "info" };
+    const c = counts.get(bucket.label) || { label: bucket.label, sev: bucket.sev, count: 0 };
+    c.count++;
+    counts.set(bucket.label, c);
+  }
+  return [...counts.values()].sort((a, b) => b.count - a.count);
+}
+
+// ---------------------------------------------------------------- charts
+function lineChart(container, seriesList, opts) {
+  const W = container.clientWidth || 600, H = opts.height || 180;
+  const M = { top: 10, right: 70, bottom: 22, left: 44 };
+  const iw = W - M.left - M.right, ih = H - M.top - M.bottom;
+  const allPts = seriesList.flatMap(s => s.pts);
+  if (!allPts.length) { container.innerHTML = '<div class="empty">no data in range</div>'; return; }
+  const t0 = Math.min(...allPts.map(p => p.ts)), t1 = Math.max(...allPts.map(p => p.ts), t0 + 60);
+  let vMax = Math.max(...allPts.map(p => p.val), ...seriesList.flatMap(s => (s.guides || []).map(g => g.val)));
+  vMax = opts.vMax || vMax * 1.08;
+  const X = ts => M.left + (ts - t0) / (t1 - t0) * iw;
+  const Y = v => M.top + ih - (v / vMax) * ih;
+
+  const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, width: "100%", height: H });
+  const grid = el("g", { class: "grid" });
+  const yticks = 4;
+  for (let i = 0; i <= yticks; i++) {
+    const v = vMax / yticks * i, y = Y(v);
+    grid.appendChild(el("line", { x1: M.left, x2: W - M.right, y1: y, y2: y }));
+    svg.appendChild(txt(M.left - 6, y + 4, opts.fmtY(v), { "text-anchor": "end" }));
+  }
+  svg.appendChild(grid);
+  const xticks = Math.min(6, Math.round(iw / 90));
+  for (let i = 0; i <= xticks; i++) {
+    const ts = t0 + (t1 - t0) / xticks * i;
+    svg.appendChild(txt(X(ts), H - 6, fmtTime(ts), { "text-anchor": "middle" }));
+  }
+  const rightLabelYs = [];
+  const placeRightLabel = (y) => {
+    // Nudge right-edge labels apart so guide caps and line-end names never overlap.
+    let ly = y;
+    while (rightLabelYs.some(o => Math.abs(o - ly) < 11)) ly += 11;
+    rightLabelYs.push(ly);
+    return ly;
+  };
+  for (const s of seriesList) {
+    for (const g of s.guides || []) {
+      svg.appendChild(el("line", { x1: M.left, x2: W - M.right, y1: Y(g.val), y2: Y(g.val),
+        stroke: s.color, "stroke-dasharray": "3 5", "stroke-opacity": .5, "stroke-width": 1 }));
+      svg.appendChild(txt(W - M.right + 4, placeRightLabel(Y(g.val) + 4), g.label, { fill: s.color, "fill-opacity": .85 }));
+    }
+    if (!s.pts.length) continue;
+    const d = s.pts.map((p, i) => (i ? "L" : "M") + X(p.ts).toFixed(1) + " " + Y(p.val).toFixed(1)).join(" ");
+    svg.appendChild(el("path", { d, fill: "none", stroke: s.color, "stroke-width": 1.75, "stroke-linejoin": "round" }));
+    if (s.name) {
+      const last = s.pts[s.pts.length - 1];
+      svg.appendChild(txt(W - M.right + 4, placeRightLabel(Y(last.val) + 4), s.name, { fill: s.color }));
+    }
+  }
+  for (const mk of opts.markers || []) {
+    const x = X(mk.ts), y = Y(mk.val);
+    if (mk.type === "compact") {
+      svg.appendChild(el("path", { d: `M${x - 5} ${y - 11} L${x + 5} ${y - 11} L${x} ${y - 3} Z`,
+        fill: "var(--green)", stroke: "var(--background)", "stroke-width": 1 }));
+    } else {
+      const g = el("g", { stroke: "var(--red)", "stroke-width": 2 });
+      g.appendChild(el("line", { x1: x - 4, x2: x + 4, y1: y - 4, y2: y + 4 }));
+      g.appendChild(el("line", { x1: x - 4, x2: x + 4, y1: y + 4, y2: y - 4 }));
+      svg.appendChild(g);
+    }
+  }
+  // hover: nearest point across series
+  const hot = el("circle", { r: 4.5, fill: "none", stroke: "var(--fg)", "stroke-width": 1.5, visibility: "hidden" });
+  const xline = el("line", { y1: M.top, y2: H - M.bottom, stroke: "var(--mid-30)", "stroke-dasharray": "2 4", visibility: "hidden" });
+  svg.appendChild(xline); svg.appendChild(hot);
+  svg.addEventListener("mousemove", evt => {
+    const box = svg.getBoundingClientRect();
+    const mx = (evt.clientX - box.left) * (W / box.width);
+    let best = null;
+    for (const s of seriesList) for (const p of s.pts) {
+      const dx = Math.abs(X(p.ts) - mx);
+      if (!best || dx < best.dx) best = { dx, p, s };
+    }
+    if (!best || best.dx > 40) { hot.setAttribute("visibility", "hidden"); xline.setAttribute("visibility", "hidden"); hideTip(); return; }
+    const { p, s } = best;
+    hot.setAttribute("cx", X(p.ts)); hot.setAttribute("cy", Y(p.val));
+    hot.setAttribute("stroke", s.color); hot.setAttribute("visibility", "visible");
+    xline.setAttribute("x1", X(p.ts)); xline.setAttribute("x2", X(p.ts)); xline.setAttribute("visibility", "visible");
+    showTip(opts.tip(p, s), evt);
+  });
+  svg.addEventListener("mouseleave", () => { hot.setAttribute("visibility", "hidden"); xline.setAttribute("visibility", "hidden"); hideTip(); });
+  container.innerHTML = "";
+  container.appendChild(svg);
+}
+
+// ---------------------------------------------------------------- render
+function render() {
+  const A = analyse();
+  const { memSeries, live, sessions, compactions, pressure } = A;
+  lastSessions = sessions;
+  const now = Date.now() / 1000;
+
+  // health & recommendations
+  const icons = { crit: '<span class="ico ico-x" aria-hidden="true"></span>', warn: '<span class="ico ico-warn" aria-hidden="true"></span>', info: "◦", ok: '<span class="ico ico-check" aria-hidden="true"></span>' };
+  $("#findings").innerHTML = healthFindings(A, now).map(f =>
+    `<div class="finding ${f.sev}"${f.rule ? ` data-rule="${f.rule}"` : ""}><span class="fico">${icons[f.sev]}</span><span>${f.rule && f.rule !== "OK" ? `<span class="frule">${f.rule}</span>` : ""}${esc(f.text)}${f.beta ? '<span class="beta-chip">beta</span>' : ""}${f.action ? ` <span class="faction">→ ${esc(f.action)}</span>` : ""}</span></div>`
+  ).join("");
+  renderBetaBadge();
+  renderFindingsTrends();
+  const buckets = errorBuckets(A.allErrors);
+  const maxCount = Math.max(1, ...buckets.map(b => b.count));
+  $("#errtotal").textContent = A.allErrors.length ? `${A.allErrors.length} errors in range` : "";
+  $("#errbuckets").innerHTML = buckets.length
+    ? buckets.map(b => `<div class="bucketrow ${b.sev}"><span class="blab">${esc(b.label)}</span><span class="bbar" style="width:${(b.count / maxCount * 220).toFixed(0)}px"></span><span class="bcount">${b.count}</span></div>`).join("")
+    : '<div class="empty">no errors in range</div>';
+
+  const newest = records.length ? records[records.length - 1].ts : 0;
+  const age = now - newest;
+  $("#conn").classList.toggle("stale", age > 180);
+  $("#meta").textContent = records.length
+    ? `${records.length} records · newest ${Math.round(age)}s ago · template v4`
+    : "no data";
+
+  // ledger — Hermes analytics stat style
+  const rows = [];
+  const lrow = (val, label, swatchColor, valColor) =>
+    `<div class="lrow"><span class="lval"${valColor ? ` style="color:${valColor}"` : ""}>${val}</span><span class="leader"></span><span class="llab">${swatchColor ? `<span class="swatch" style="background:${swatchColor}"></span>` : ""}${label}</span></div>`;
+  for (const [host, pts] of Object.entries(memSeries)) {
+    const last = pts[pts.length - 1];
+    const meta = HOSTS[host] || { label: host, color: "var(--mid-55)" };
+    rows.push(lrow(`${last.used.toFixed(1)} <span class="lunit">/ ${last.total.toFixed(0)} GB · CPU ${last.cpu != null ? last.cpu.toFixed(2) : "–"}</span>`, `${esc(meta.label)} memory`, meta.color));
+  }
+  const totalCalls = [...sessions.values()].reduce((a, s) => a + s.points.length, 0);
+  const activeSessions = [...sessions.values()].filter(s => s.points.length && now - s.points[s.points.length - 1].ts < hours * 3600);
+  rows.push(lrow(`${activeSessions.length} <span class="lunit">· ${totalCalls} api calls</span>`, "sessions in range"));
+  const lastC = compactions[compactions.length - 1];
+  rows.push(lrow(`${compactions.length} <span class="lunit">${lastC ? `· last ${fmtTime(lastC.ts)} ${fmtTok(lastC.before)} → ${fmtTok(lastC.after)}` : "· none in range"}</span>`, "compactions"));
+  const worst = pressure.find(p => p.cap);
+  if (worst) {
+    const pct = worst.peak.val / worst.cap * 100;
+    const color = pct >= 100 ? "var(--red)" : pct >= 85 ? "var(--amber)" : "var(--green)";
+    const state = pct >= 100 ? '<span class="ico ico-x" aria-hidden="true"></span> overflow' : pct >= 85 ? '<span class="ico ico-warn" aria-hidden="true"></span> near cap' : '<span class="ico ico-check" aria-hidden="true"></span> ok';
+    rows.push(lrow(`${pct.toFixed(0)}% <span class="lunit">· ${state} · ${esc(shortModel(worst.model))} ${fmtTok(worst.peak.val)}/${fmtTok(worst.cap)} at ${fmtTime(worst.peak.ts)}</span>`, "peak pool pressure", null, color));
+  }
+  $("#ledger").innerHTML = rows.join("");
+
+  // memory chart
+  const memList = Object.entries(memSeries).map(([host, pts]) => {
+    const meta = HOSTS[host] || { label: host, color: "var(--mid-55)" };
+    return {
+      name: meta.label, color: meta.color,
+      pts: pts.map(p => ({ ts: p.ts, val: p.used, meta: p })),
+      guides: [{ val: pts[pts.length - 1].total, label: `cap ${pts[pts.length - 1].total.toFixed(0)}` }],
+    };
+  });
+  $("#memLegend").innerHTML = memList.map(s =>
+    `<span><span class="swatch" style="background:${s.color}"></span>${esc(s.name)}</span>`).join("");
+  lineChart($("#memChart"), memList, {
+    height: 210, fmtY: v => v.toFixed(0),
+    tip: (p, s) => `<div class="t-model">${esc(s.name)}</div><div class="row"><span>${fmtTime(p.ts)}</span><b>${p.val.toFixed(2)} / ${p.meta.total} GB</b></div><div class="tip-note">CPU load ${p.meta.cpu != null ? p.meta.cpu.toFixed(2) : "–"}</div>`,
+  });
+
+  // KV pool pressure panels
+  const poolGrid = $("#pool");
+  poolGrid.innerHTML = "";
+  const shownPressure = pressure.slice(0, 4);
+  if (!shownPressure.length) poolGrid.innerHTML = '<div class="empty">no model traffic in range</div>';
+  for (const pr of shownPressure) {
+    const panel = document.createElement("div");
+    panel.className = "panel";
+    const pct = pr.cap ? (pr.peak.val / pr.cap * 100).toFixed(0) + "% of pool" : "cap unknown";
+    panel.innerHTML = `<div class="sess-head"><span class="sid">${esc(shortModel(pr.model))}</span>
+      <span class="mdl">peak ${fmtTok(pr.peak.val)} · ${pct}</span></div><div class="pp-chart"></div>`;
+    poolGrid.appendChild(panel);
+    lineChart(panel.querySelector(".pp-chart"), [{
+      name: "", color: "var(--mid)", pts: pr.pts,
+      guides: pr.cap ? [{ val: pr.cap, label: `pool ${fmtTok(pr.cap)}` }] : [],
+    }], {
+      height: 150, vMax: Math.max(pr.cap ? pr.cap * 1.15 : 0, pr.peak.val * 1.1), fmtY: fmtTok,
+      tip: p => `<div class="row"><span>${fmtTime(p.ts)}</span><b>${fmtTok(p.val)} tok in flight</b></div><div class="tip-note">${p.meta.active} request${p.meta.active === 1 ? "" : "s"} · ${p.meta.sids.length} session${p.meta.sids.length === 1 ? "" : "s"}</div>`,
+    });
+  }
+
+  // session panels — shared y-scale for comparability
+  const shown = [...sessions.entries()]
+    .filter(([, s]) => s.points.length >= 2)
+    .sort((a, b) => b[1].points[b[1].points.length - 1].ts - a[1].points[a[1].points.length - 1].ts)
+    .slice(0, 6);
+  const yMax = Math.max(10000, ...shown.flatMap(([, s]) => s.points.map(p => p.tokens))) * 1.1;
+  const grid = $("#sessions");
+  grid.innerHTML = "";
+  if (!shown.length) grid.innerHTML = '<div class="empty">no agent api calls in range</div>';
+  for (const [sid, s] of shown) {
+    const panel = document.createElement("div");
+    panel.className = "panel";
+    const short = sid.length > 26 ? sid.slice(0, 26) + "…" : sid;
+    const totIn = s.points.reduce((a, p) => a + p.tokens, 0);
+    const totOut = s.points.reduce((a, p) => a + (p.out || 0), 0);
+    const tpsVals = s.points.map(p => p.tps).filter(v => v != null);
+    const avgTps = tpsVals.length ? (tpsVals.reduce((a, v) => a + v, 0) / tpsVals.length).toFixed(1) : null;
+    const freed = s.compactions.reduce((a, c) => a + (c.before - c.after), 0);
+    const bits = [
+      `${s.points.length} calls`,
+      `Σin ${fmtTok(totIn)} · Σout ${fmtTok(totOut)}`,
+      avgTps ? `~${avgTps} tps` : null,
+      s.compactions.length ? `compacted ${s.compactions.length}× (−${fmtTok(freed)})` : null,
+      s.errors.length ? `${s.errors.length} error${s.errors.length === 1 ? "" : "s"}` : null,
+    ].filter(Boolean).join(" · ");
+    const name = sessionNames[sid];
+    panel.innerHTML = `<div class="sess-head"><span class="sid clickable" title="show session name">${esc(short)}</span>
+      <span class="mdl">${esc(shortModel(s.model))}${s.platform ? " · " + esc(s.platform) : ""}</span></div>
+      <div class="sess-name" hidden>${name ? esc(name) : "no name recorded"} · ${esc(sid)}</div>
+      <div class="sess-stats">${esc(bits)}</div>
+      <div class="sess-chart"></div>`;
+    panel.querySelector(".sid").addEventListener("click", () => {
+      const n = panel.querySelector(".sess-name");
+      n.hidden = !n.hidden;
+    });
+    grid.appendChild(panel);
+    const markers = [
+      ...s.compactions.map(c => ({ type: "compact", ts: c.ts, val: c.after })),
+      ...s.errors.map(e => ({ type: "error", ts: e.ts, val: nearestTokens(s, e.ts) })),
+    ];
+    lineChart(panel.querySelector(".sess-chart"), [{
+      name: "", color: "var(--mid)",
+      pts: s.points.map(p => ({ ts: p.ts, val: p.tokens, meta: p })),
+    }], {
+      height: 150, vMax: yMax, fmtY: fmtTok, markers,
+      tip: p => `<div class="row"><span>${fmtTime(p.ts)}</span><b>${fmtTok(p.val)} tok context</b></div><div class="tip-note">out ${p.meta.out ?? "–"} tok · ${p.meta.dur ? p.meta.dur.toFixed(1) + "s" : "–"}</div>`,
+    });
+  }
+
+  // residency
+  const resWrap = $("#residency");
+  resWrap.innerHTML = "";
+  if (!live.size) resWrap.innerHTML = '<div class="empty">no pool_status data</div>';
+  for (const [device, models] of live) {
+    const host = deviceHost(device);
+    const mem = host && memSeries[host] ? memSeries[host][memSeries[host].length - 1] : null;
+    const card = document.createElement("div");
+    card.className = "panel";
+    const swatch = host && HOSTS[host] ? `<span class="swatch" style="background:${HOSTS[host].color};margin-right:7px"></span>` : "";
+    card.innerHTML = `<div class="sess-head"><span class="sid">${swatch}${esc(device)}</span>
+      ${mem ? `<span class="mdl">${mem.used.toFixed(1)}/${mem.total.toFixed(0)} GB used</span>` : ""}</div>`;
+    resWrap.appendChild(card);
+    const denom = mem ? mem.total : 64;
+    for (const m of models.sort()) {
+      const cfg = LOAD_SETTINGS[m] || {};
+      const pct = cfg.gb ? Math.min(100, cfg.gb / denom * 100) : 2;
+      const row = document.createElement("div");
+      row.className = "model-row";
+      row.innerHTML = `<div class="name" title="${esc(m)}">${esc(m)}</div>
+        <div class="bar-wrap"><div class="bar" style="width:${pct.toFixed(1)}%"></div></div>
+        <div class="detail">${cfg.gb != null ? cfg.gb + " GB" : "size ?"}${cfg.ctx ? ` · ctx ${cfg.ctx.toLocaleString()}` : ""}${cfg.parallel ? ` · parallel ${cfg.parallel} <span title="all parallel slots share one KV pool of ctx tokens">(shared KV pool)</span>` : ""}</div>`;
+      card.appendChild(row);
+    }
+  }
+
+  // events table — rows expand to the session's full request chain
+  lastEvents = [
+    ...compactions.map(c => ({ ts: c.ts, sid: c.sid, kind: "compaction", detail: `${c.sid}: ${fmtTok(c.before)} → ${fmtTok(c.after)} (−${fmtTok(c.before - c.after)})`, cls: "good" })),
+    ...[...sessions.entries()].flatMap(([sid, s]) => s.errors.map(e => ({ ts: e.ts, sid, kind: "error", detail: `${sid}: ${e.error}`, cls: "bad", err: e }))),
+  ].sort((a, b) => b.ts - a.ts).slice(0, 60);
+  $("#eventsTable").innerHTML = lastEvents.length
+    ? `<table><thead><tr><th>Time</th><th>Event</th><th>Detail</th></tr></thead><tbody>` +
+      lastEvents.map((r, i) => `<tr class="evrow" data-i="${i}" title="show request chain"><td>${fmtTime(r.ts)}</td><td class="${r.cls}">${esc(r.kind)}</td><td>${esc(r.detail.length > 160 ? r.detail.slice(0, 160) + "…" : r.detail)}</td></tr>`).join("") +
+      `</tbody></table>`
+    : '<div class="empty">no compaction or error events in range</div>';
+}
+
+// Chronological request chain for one session: every api call, with
+// compactions and errors interleaved where they happened.
+function sessionTimeline(s) {
+  const items = [];
+  s.points.forEach((p, i) => items.push({ ts: p.ts, cls: "", text: `#${i + 1}  ${fmtTime(p.ts)} · in ${fmtTok(p.tokens)} · out ${p.out ?? "–"} · ${p.dur ? p.dur.toFixed(1) + "s" : "–"}${p.fin ? " · " + p.fin : ""}` }));
+  (s.compactions || []).forEach(c => items.push({ ts: c.ts + 0.001, cls: "cmp", text: `▼ compaction ${fmtTok(c.before)} → ${fmtTok(c.after)}` }));
+  (s.errors || []).forEach(e => items.push({ ts: e.ts, cls: "err", text: `${fmtTime(e.ts)} · ${e.error}` }));
+  return items.sort((a, b) => a.ts - b.ts);
+}
+function eventDetailHtml(ev) {
+  const s = lastSessions && lastSessions.get(ev.sid);
+  const name = sessionNames[ev.sid];
+  let html = `<span class="evname">${name ? esc(name) : "no name recorded"}</span> · ${esc(ev.sid)}`;
+  if (s) html += ` · ${esc(shortModel(s.model))}${s.platform ? " · " + esc(s.platform) : ""}`;
+  if (ev.err) {
+    html += `<span class="everr">${esc(ev.err.error)}</span>`;
+    if (ev.err.turn || ev.err.req) html += `<div>${ev.err.req ? "req " + esc(ev.err.req) : "turn " + esc(ev.err.turn)}</div>`;
+  }
+  if (s) {
+    const lines = sessionTimeline(s);
+    html += `<div class="evtl">` + lines.slice(-40).map(l => `<div class="${l.cls}">${l.cls === "err" ? '<span class="ico ico-x" aria-hidden="true"></span> ' : ""}${esc(l.text)}</div>`).join("") + `</div>`;
+    if (lines.length > 40) html += `<div>… showing last 40 of ${lines.length} entries</div>`;
+  } else {
+    html += `<div>no api calls for this session in the selected range</div>`;
+  }
+  return html;
+}
+
+// Beta badge lifecycle: plain tag while under review; notification dot +
+// hover popover (review agent's analysis + keep/delete buttons) once a
+// final_analysis lands; muted verdict line after a decision.
+function renderBetaBadge() {
+  const el = $("#betaBadge");
+  const w = betaWidgets["agent-loop-detector"];
+  if (!w) { el.innerHTML = ""; return; }
+  if (w.status === "deleted") {
+    const d = w.decision ? new Date(w.decision.ts * 1000).toISOString().slice(0, 10) : "";
+    el.innerHTML = `<span class="beta-wrap">loop detector · deleted ${d}</span>`;
+    return;
+  }
+  if (w.status === "kept") {
+    el.innerHTML = `<span class="beta-wrap">loop detector · kept <span class="ico ico-check" aria-hidden="true"></span></span>`;
+    return;
+  }
+  const done = !!w.final_analysis;
+  const reviews = (w.reviews || []).length;
+  el.innerHTML = `<span class="beta-wrap">loop detector
+    <span class="beta-chip">beta${done ? '<span class="notif"></span>' : ""}</span>
+    <span class="beta-pop">
+      <h4>agent-loop-detector · review ${done ? "complete" : `${reviews} of 7`}</h4>
+      <div>${done ? esc(w.final_analysis) : esc(w.reviews && reviews ? w.reviews[reviews - 1].summary || "review in progress" : "review agent reports every 2 days until 2026-08-08")}</div>
+      ${done ? `<div class="rec">recommendation: ${esc(w.recommendation || "?")}</div>
+      <div class="btns"><button class="chip" data-beta-decide="keep">Keep</button><button class="chip" data-beta-decide="delete">Delete</button></div>` : ""}
+    </span></span>`;
+  for (const b of el.querySelectorAll("[data-beta-decide]")) {
+    b.addEventListener("click", async () => {
+      const res = await fetch("/api/beta-widgets/decision", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: "agent-loop-detector", decision: b.dataset.betaDecide }),
+      });
+      if (res.ok) { betaWidgets = (await res.json()).widgets || betaWidgets; render(); }
+      else alert((await res.json().catch(() => ({}))).error || "decision not saved");
+    });
+  }
+}
+
+// Health Trends: server-persisted findings history (/api/findings?days=7).
+// findingsHistory stays null while the endpoint is unavailable and the card
+// stays hidden — a missing backend never breaks the rest of the page.
+function renderFindingsTrends() {
+  const card = $("#trendsCard");
+  const wrap = $("#findingsTrends");
+  if (!findingsHistory) { card.hidden = true; return; }
+  card.hidden = false;
+  if (!findingsHistory.total) {
+    wrap.innerHTML = '<div class="empty">no findings recorded in the last 7 days</div>';
+    return;
+  }
+  const icons = { crit: '<span class="ico ico-x" aria-hidden="true"></span>', warn: '<span class="ico ico-warn" aria-hidden="true"></span>', info: "◦", ok: '<span class="ico ico-check" aria-hidden="true"></span>' };
+  wrap.innerHTML = "";
+  for (const r of findingsHistory.rules || []) {
+    const row = document.createElement("div");
+    row.className = "trend " + (r.worst_sev || "info");
+    if (r.rule) row.dataset.rule = r.rule;
+    const ico = document.createElement("span");
+    ico.className = "fico";
+    ico.innerHTML = icons[r.worst_sev] || "◦";
+    row.appendChild(ico);
+    const label = document.createElement("span");
+    label.className = "tlabel";
+    label.textContent = `${r.rule} · ${r.label || ""}`;
+    row.appendChild(label);
+    const meta = document.createElement("span");
+    meta.className = "tmeta";
+    meta.textContent = `${r.count} fire${r.count === 1 ? "" : "s"} · ${r.days_fired} day${r.days_fired === 1 ? "" : "s"}`;
+    row.appendChild(meta);
+    const spark = document.createElement("span");
+    spark.className = "tspark";
+    spark.appendChild(sparkBars(r.daily || []));
+    row.appendChild(spark);
+    if (r.example_text) {
+      const ex = document.createElement("span");
+      ex.className = "tex";
+      ex.textContent = r.example_text;
+      row.appendChild(ex);
+    }
+    wrap.appendChild(row);
+  }
+}
+
+// 7-bar sparkline of per-day fire counts, oldest→newest.
+function sparkBars(daily) {
+  const W = 84, H = 20, bw = 9, gap = 3;
+  const max = Math.max(1, ...daily);
+  const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, width: W, height: H });
+  daily.forEach((v, i) => {
+    const h = v ? Math.max(2, v / max * (H - 2)) : 1;
+    svg.appendChild(el("rect", {
+      x: i * (bw + gap), y: H - h, width: bw, height: h,
+      fill: v ? "var(--mid)" : "var(--mid-16)",
+    }));
+  });
+  return svg;
+}
+
+function nearestTokens(s, ts) {
+  let best = null;
+  for (const p of s.points) if (!best || Math.abs(p.ts - ts) < Math.abs(best.ts - ts)) best = p;
+  return best ? best.tokens : 0;
+}
+
+// ---------------------------------------------------------------- wiring
+for (const b of document.querySelectorAll(".chip[data-hours]")) {
+  b.addEventListener("click", () => {
+    document.querySelectorAll(".chip[data-hours]").forEach(x => x.classList.remove("on"));
+    b.classList.add("on");
+    hours = Number(b.dataset.hours);
+    fetchData().catch(console.error);
+  });
+}
+$("#eventsTable").addEventListener("click", (evt) => {
+  const row = evt.target.closest("tr.evrow");
+  if (!row) return;
+  const existing = row.nextElementSibling;
+  if (existing && existing.classList.contains("evdetail")) { existing.remove(); return; }
+  const ev = lastEvents[Number(row.dataset.i)];
+  if (!ev) return;
+  const detail = document.createElement("tr");
+  detail.className = "evdetail";
+  detail.innerHTML = `<td colspan="3">${eventDetailHtml(ev)}</td>`;
+  row.after(detail);
+});
+$("#tableToggle").addEventListener("click", () => {
+  const sec = $("#tableSection");
+  sec.hidden = !sec.hidden;
+  $("#tableToggle").setAttribute("aria-pressed", String(!sec.hidden));
+  $("#tableToggle").classList.toggle("on", !sec.hidden);
+});
+// Health Trends header hover: where the data comes from and how to run the
+// weekly digest by hand (mirrors README "Health findings history").
+const trendsTip = $("#trendsTip");
+const TRENDS_TIP_HTML =
+  `<div class="t-model">Health findings history</div>
+   <div class="tip-note">Rules R1–R13 are snapshotted server-side every 30 min into the metrics DB — this card is the 7-day rollup of /api/findings?days=7.</div>
+   <div class="tip-note">Weekly digest (rule rollup + session deep-dives): <b>~/hermes-metrics-dash/docs/health-digest-*.md</b> on the dashboard host, when scheduled (e.g. launchd ai.hermes.healthdigest).</div>
+   <div class="tip-note">Run now: <b>scripts/health_weekly_digest.py</b> · one session: <b>scripts/session_deepdive.py --session &lt;id&gt;</b></div>
+   <div class="tip-note">Logs: ~/.hermes/logs/healthdigest.log + metricsdash.err.log</div>`;
+trendsTip.addEventListener("mousemove", evt => showTip(TRENDS_TIP_HTML, evt));
+trendsTip.addEventListener("mouseleave", hideTip);
+trendsTip.addEventListener("focus", () => {
+  const r = trendsTip.getBoundingClientRect();
+  showTip(TRENDS_TIP_HTML, { clientX: r.left, clientY: r.bottom });
+});
+trendsTip.addEventListener("blur", hideTip);
+// Rule hover tooltips: any [data-rule] row (live findings + Health Trends)
+// shows its RULE_DESCS blurb via the shared tooltip. Rows re-render every
+// refresh, so the listeners delegate on the stable containers instead.
+function ruleTipHtml(rule) {
+  const desc = RULE_DESCS[rule];
+  return desc ? `<div class="t-model">${rule}</div><div class="tip-note">${desc}</div>` : null;
+}
+for (const sel of ["#findings", "#findingsTrends"]) {
+  const box = $(sel);
+  box.addEventListener("mousemove", evt => {
+    const row = evt.target.closest("[data-rule]");
+    const html = row ? ruleTipHtml(row.dataset.rule) : null;
+    if (html) showTip(html, evt); else hideTip();
+  });
+  box.addEventListener("mouseleave", hideTip);
+}
+addEventListener("resize", () => { if (records.length) render(); });
+
+fetchData().catch(err => { $("#meta").textContent = "fetch failed: " + err; });
+setInterval(() => fetchData().catch(console.error), REFRESH_MS);
+</script>
+</body>
+</html>

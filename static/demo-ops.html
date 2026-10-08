@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ops sections — clean redesign proposals</title>
+<style>
+  :root {
+    --bg: #f7f7f4; --card: #ffffff; --edge: #e7e6e0; --edge2: #efeee8;
+    --ink: #1c1c1a; --dim: #82806f; --faint: #b5b3a6;
+    --a1: #4f7cf0; --a2: #12b5a5; --a3: #f0a04f; --a4: #a78bfa; --bad: #e05c5c;
+    --radius: 12px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #141412; --card: #1d1d1a; --edge: #2c2c27; --edge2: #262622;
+      --ink: #f0efe9; --dim: #9c9a8c; --faint: #5c5a50;
+      --a1: #7b9bf5; --a2: #2dd4c3; --a3: #f5b567; --a4: #b79df7; --bad: #ef7070;
+    }
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body { background: var(--bg); color: var(--ink); font: 13px/1.5 -apple-system, system-ui, sans-serif; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 20px 22px 48px; }
+  .num { font-variant-numeric: tabular-nums; }
+
+  .banner { background: color-mix(in srgb, var(--a1) 8%, var(--card)); border: 1px solid color-mix(in srgb, var(--a1) 25%, var(--edge));
+    border-radius: 10px; padding: 10px 14px; font-size: 12px; color: var(--dim); margin-bottom: 18px; }
+  .banner b { color: var(--ink); }
+  .tag { display: inline-block; font-size: 9px; font-weight: 700; letter-spacing: .05em; color: var(--a1);
+    border: 1px solid color-mix(in srgb, var(--a1) 35%, var(--edge)); border-radius: 4px; padding: 0 4px;
+    vertical-align: 2px; margin-left: 6px; cursor: help; position: relative; }
+  .tag:hover::after { content: attr(data-tip); position: absolute; z-index: 40; background: var(--card);
+    border: 1px solid var(--edge); border-radius: 8px; padding: 8px 10px; font-size: 11px; color: var(--ink);
+    max-width: 320px; width: 300px; box-shadow: 0 6px 20px rgba(0,0,0,.15); margin: 14px 0 0 -10px; font-weight: 400; letter-spacing: 0; }
+
+  header { display: flex; align-items: baseline; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+  header h1 { font-size: 16px; font-weight: 650; letter-spacing: -.01em; }
+  header .right { margin-left: auto; font-size: 11px; color: var(--dim); }
+
+  .sect { font-size: 11px; font-weight: 650; text-transform: uppercase; letter-spacing: .08em; color: var(--dim); margin: 22px 0 10px; }
+  .card { background: var(--card); border: 1px solid var(--edge); border-radius: var(--radius); box-shadow: 0 1px 2px rgba(0,0,0,.03); }
+  .grid { display: grid; gap: 12px; }
+  .g2 { grid-template-columns: 1fr 1fr; } .g3 { grid-template-columns: 1fr 1fr 1fr; }
+  @media (max-width: 900px) { .g2, .g3 { grid-template-columns: 1fr; } }
+
+  /* benchmark current cards */
+  .cur { padding: 12px 14px 8px; }
+  .cur .top { display: flex; align-items: baseline; gap: 8px; margin-bottom: 2px; }
+  .cur .model { font-family: ui-monospace, Menlo, monospace; font-size: 12px; font-weight: 600; }
+  .cur .useg { font-size: 10px; color: var(--a2); border: 1px solid color-mix(in srgb, var(--a2) 35%, var(--edge)); border-radius: 999px; padding: 1px 7px; }
+  .cur .age { margin-left: auto; font-size: 10px; color: var(--faint); }
+  .cur .age.stale { color: var(--a3); font-weight: 600; }
+  .cur .vals { display: flex; gap: 14px; font-size: 11px; color: var(--dim); }
+  .cur .vals b { color: var(--ink); font-size: 13px; }
+  .cur canvas { width: 100%; height: 38px; display: block; margin-top: 4px; cursor: crosshair; }
+  .cur .yieldrow { display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: 11px; color: var(--dim); }
+  .cur .yieldbar { flex: 1; height: 5px; background: var(--edge2); border-radius: 3px; overflow: hidden; }
+  .cur .yieldbar i { display: block; height: 100%; background: var(--a2); border-radius: 3px; }
+
+  /* chart cards */
+  .chartcard { padding: 12px 14px 8px; }
+  .chartcard h3 { font-size: 12px; font-weight: 600; margin-bottom: 2px; }
+  .chartcard .sub { font-size: 11px; color: var(--dim); margin-bottom: 6px; }
+  .chartcard canvas { width: 100%; display: block; cursor: crosshair; }
+
+  /* conversations */
+  .convo { padding: 10px 14px; display: flex; align-items: center; gap: 14px; }
+  .convo .id { font-size: 12px; font-weight: 600; min-width: 150px; }
+  .convo .id small { display: block; font-weight: 400; color: var(--faint); font-size: 10px; }
+  .convo .stats { font-size: 11px; color: var(--dim); min-width: 170px; }
+  .convo canvas { flex: 1; height: 34px; cursor: crosshair; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th { text-align: left; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--dim); padding: 6px 10px; }
+  td { padding: 6px 10px; border-top: 1px solid var(--edge2); }
+  tr:hover td { background: var(--edge2); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="banner"><b>Clean-design proposals for the remaining ops sections</b> — benchmark page, diagnostics, conversations. Hover the <span class="tag" data-tip="x">P#</span> chips for rationale. Static demo data; nothing wired.</div>
+
+  <header>
+    <h1>Ops sections · clean pass</h1>
+    <span class="right">2026-07-19</span>
+  </header>
+
+  <!-- ================= BENCHMARK ================= -->
+  <div class="sect">Benchmark page · current setups <span class="tag" data-tip="P1 — Every 'Current' row becomes a card with its own interactive t/s sparkline built from benchmark_samples history (crosshair + point values, same component as the KPI sparklines). Today these rows are static text — the samples exist but are invisible.">P1</span></div>
+  <div class="grid g2" id="current"></div>
+
+  <div class="grid" style="margin-top:12px">
+    <div class="card chartcard">
+      <h3>Samples over time — yield <span class="tag" data-tip="P2 — One samples-over-time scatter for the whole benchmark page (yield per sample, colored by model), with the same crosshair + brush-zoom as the main throughput chart. Currently there is no time view at all on #/benchmark — you can't see when a setup was measured or whether it's drifting.">P2</span></h3>
+      <div class="sub">hover for values · drag to zoom · <span id="zoomlabel"></span></div>
+      <canvas id="scatter" style="height:150px"></canvas>
+    </div>
+  </div>
+
+  <!-- ================= DIAGNOSTICS ================= -->
+  <div class="sect">Diagnostics row <span class="tag" data-tip="P3 — The accordion diagnostics keep their content but adopt the shared interaction kit: crosshair on every time-series, dual joint-hover where two series share a canvas, hover-highlight on categorical rows. Same look, uniformly interactive.">P3</span></div>
+  <div class="grid g3">
+    <div class="card chartcard">
+      <h3>Host resources</h3>
+      <div class="sub">CPU + RAM · joint hover <span class="tag" data-tip="P3a — The host mini-charts become the fleet dual-sparkline component (joint crosshair showing both real values), replacing the two separate static SVGs.">P3a</span></div>
+      <canvas id="hostres" style="height:60px"></canvas>
+    </div>
+    <div class="card chartcard">
+      <h3>Context growth</h3>
+      <div class="sub">input tokens per request <span class="tag" data-tip="P3b — Context growth gets the KPI sparkline treatment with a crosshair — today it's a static line with a tooltip only on points.">P3b</span></div>
+      <canvas id="ctxspark" style="height:60px"></canvas>
+    </div>
+    <div class="card chartcard">
+      <h3>Efficiency</h3>
+      <div class="sub">duration vs t/s · hover points <span class="tag" data-tip="P3c — Efficiency scatter points enlarge on hover with the value readout inline (no tooltip hunting), matching the latency dot plot from the overview pass.">P3c</span></div>
+      <canvas id="eff" style="height:60px"></canvas>
+    </div>
+  </div>
+
+  <!-- ================= CONVERSATIONS ================= -->
+  <div class="sect">Conversations <span class="tag" data-tip="P4 — Each conversation card gains a per-conversation t/s sparkline (its own request series) with hover crosshair — right now the card is summary numbers only and you can't see the session's rhythm.">P4</span></div>
+  <div class="grid" id="convos"></div>
+
+  <!-- ================= MOA EXECUTION ================= -->
+  <div class="sect">MoA execution <span class="tag" data-tip="P5 — The waterfall turns interactive: hover a bar to isolate that call (others dim) with inline readout instead of tooltip-only; the turn head gets summary chips (fan-out, slowest proposer, aggregation estimate, output tokens); and a per-turn total-duration sparkline up top links the turns into a trend so regressions in MoA latency are visible at a glance.">P5</span></div>
+  <div class="grid">
+    <div class="card chartcard">
+      <h3>MoA turn latency — last 14 turns</h3>
+      <div class="sub">total wall time per turn · hover for value</div>
+      <canvas id="moaspark" style="height:44px"></canvas>
+    </div>
+    <div class="card" style="padding:12px 14px" id="moaaturn"></div>
+  </div>
+
+  <!-- ================= PER-MODEL VARIANCE ================= -->
+  <div class="sect">Per-model variance <span class="tag" data-tip="P6 — Variance rows become explorable: the band gains a p25–p75 box so spread reads at a glance, hovering a row prints exact min/median/max/latest inline and highlights it, and clicking a row sets the dashboard model filter (same as clicking a legend chip — one consistent gesture everywhere). Models not currently loaded stay dimmed.">P6</span></div>
+  <div class="card" style="padding:8px 14px" id="variance"></div>
+
+  <div class="sect">Also noted, not mocked</div>
+  <div class="card" style="padding:12px 14px; font-size:12px; color:var(--dim)">
+    Env-mode modal + benchmark mark dialog: already fine — they just inherit the new tokens (radius/shadow/edge colors) with no behavior change.
+    MoA sections render only when MoA data exists (idle in single-model mode); the design above applies the moment optimized-moa is active again.
+  </div>
+
+</div>
+
+<script>
+const cssVar = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+function setupCanvas(cv){
+  const d = Math.min(devicePixelRatio,2), r = cv.getBoundingClientRect();
+  cv.width = r.width*d; cv.height = r.height*d;
+  const ctx = cv.getContext("2d"); ctx.setTransform(d,0,0,d,0,0);
+  return [ctx, r.width, r.height];
+}
+
+// ---------- shared interactive sparkline ----------
+function spark(cv, data, rgb, opts={}){
+  const [ctx,w,h] = setupCanvas(cv);
+  const min = opts.min ?? Math.min(...data), max = Math.max(...data), span = (max-min)||1;
+  let hover = -1;
+  function draw(){
+    ctx.clearRect(0,0,w,h);
+    if (opts.median != null){
+      const y = h-3-(opts.median-min)/span*(h-6);
+      ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(w,y);
+      ctx.strokeStyle = "rgba(130,128,111,.35)"; ctx.setLineDash([3,3]); ctx.stroke(); ctx.setLineDash([]);
+    }
+    ctx.beginPath();
+    data.forEach((v,i) => { const x = 3+i*(w-6)/(data.length-1), y = h-3-(v-min)/span*(h-6);
+      i?ctx.lineTo(x,y):ctx.moveTo(x,y); });
+    ctx.strokeStyle = `rgba(${rgb},.9)`; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.lineTo(w-3,h); ctx.lineTo(3,h); ctx.closePath();
+    ctx.fillStyle = `rgba(${rgb},.08)`; ctx.fill();
+    if (hover >= 0){
+      const x = 3+hover*(w-6)/(data.length-1), y = h-3-(data[hover]-min)/span*(h-6);
+      ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,h); ctx.strokeStyle = "rgba(130,128,111,.3)"; ctx.stroke();
+      ctx.beginPath(); ctx.arc(x,y,3,0,7); ctx.fillStyle = `rgba(${rgb},1)`; ctx.fill();
+      ctx.fillStyle = cssVar("--ink"); ctx.font = "600 10px system-ui";
+      ctx.textAlign = hover > data.length*.7 ? "right" : "left";
+      ctx.fillText(opts.fmt ? opts.fmt(data[hover]) : data[hover], x + (hover > data.length*.7 ? -6 : 6), Math.max(10, y-6));
+    }
+  }
+  cv.addEventListener("pointermove", e => { const r = cv.getBoundingClientRect();
+    hover = Math.max(0, Math.min(data.length-1, Math.round((e.clientX-r.left)/r.width*(data.length-1)))); draw(); });
+  cv.addEventListener("pointerleave", () => { hover = -1; draw(); });
+  draw();
+}
+
+// ---------- P1: benchmark current cards ----------
+const CURRENT = [
+  { model:"qwen3.6-35b-distill", usage:"aggregator", host:"mini", tps:45.4, gb:19.8, yield:2.29, age:"2h ago",
+    series:[22,24,21,23,45,22,20,21,22,23,24,22,21,22,23,21,22,24,23,22,21,22,23,22], rgb:"79,124,240", median:22.4 },
+  { model:"supergemma4-26b", usage:"dialectic", host:"mbp", tps:16.9, gb:15.2, yield:1.11, age:"18m ago",
+    series:[14,16,15,17,16,18,17,16,15,16,17,19,18,16,17,16,15,16,18,17,16,15,14,16], rgb:"18,181,165", median:16.5 },
+  { model:"nomic-embed-v1.5", usage:"embeddings", host:"mini", tps:null, gb:0.3, yield:null, age:"never measured",
+    series:null, rgb:"167,139,250" },
+  { model:"qwen3.6-27b-aggr.", usage:"deriver", host:"WinPC", tps:null, gb:16.1, yield:null, age:"stale 6h",
+    series:null, rgb:"240,160,79", stale:true },
+];
+CURRENT.forEach(c => {
+  const d = document.createElement("div"); d.className = "card cur";
+  d.innerHTML = `<div class="top"><span class="model">${c.model}</span><span class="useg">${c.usage}</span>
+    <span class="age ${c.stale?"stale":""}">${c.age}</span></div>
+    <div class="vals"><span>host <b>${c.host}</b></span><span>last t/s <b>${c.tps ?? "—"}</b></span><span>GB <b>${c.gb}</b></span><span>yield <b>${c.yield ?? "—"}</b></span></div>
+    ${c.series ? `<canvas></canvas><div class="yieldrow">t/s per GB<div class="yieldbar"><i style="width:${c.yield/2.29*100}%"></i></div><b>${c.yield}</b></div>` :
+      `<div style="font-size:11px;color:var(--faint);padding:10px 0 4px">no measurements yet — run a probe (deferred) or wait for traffic</div>`}`;
+  document.getElementById("current").appendChild(d);
+  if (c.series) spark(d.querySelector("canvas"), c.series, c.rgb, { median: c.median, fmt: v => v + " t/s" });
+});
+
+// ---------- P2: samples scatter with crosshair + brush ----------
+const SAMPLES = [];
+for (let i=0;i<48;i++){
+  SAMPLES.push({ t:i, y:1.8+Math.sin(i/5)*.5+Math.random()*.3, c:"79,124,240", m:"qwen" });
+  if (i%2) SAMPLES.push({ t:i+.3, y:.9+Math.sin(i/6)*.3+Math.random()*.2, c:"18,181,165", m:"gemma" });
+  if (i%6===0) SAMPLES.push({ t:i+.5, y:.3+Math.random()*.15, c:"240,160,79", m:"winpc" });
+}
+const sc = document.getElementById("scatter");
+const scState = { hover:-1, domain:[0,48], brush:null, brushing:false };
+function drawScatter(){
+  const [ctx,w,h] = setupCanvas(sc);
+  const padL=30,padR=8,padT=8,padB=16, [d0,d1] = scState.domain, ymax=2.6;
+  const X = t => padL + (t-d0)/(d1-d0)*(w-padL-padR), Y = v => h-padB - v/ymax*(h-padT-padB);
+  ctx.clearRect(0,0,w,h);
+  ctx.font = "9px system-ui"; ctx.fillStyle = cssVar("--faint"); ctx.textAlign = "right";
+  for (let g=0; g<=3; g++){ const v = ymax*g/3, y = Y(v);
+    ctx.strokeStyle = cssVar("--edge2"); ctx.beginPath(); ctx.moveTo(padL,y); ctx.lineTo(w-padR,y); ctx.stroke();
+    ctx.fillText(v.toFixed(1), padL-5, y+3); }
+  SAMPLES.forEach((s,i) => {
+    if (s.t < d0 || s.t > d1) return;
+    const dim = scState.hover >= 0 && scState.hover !== i;
+    ctx.beginPath(); ctx.arc(X(s.t), Y(s.y), scState.hover===i?5:3, 0, 7);
+    ctx.fillStyle = `rgba(${s.c},${dim?.15:.8})`; ctx.fill();
+  });
+  if (scState.hover >= 0){
+    const s = SAMPLES[scState.hover];
+    ctx.fillStyle = cssVar("--ink"); ctx.font = "600 10px system-ui"; ctx.textAlign = "left";
+    ctx.fillText(`${s.m} · yield ${s.y.toFixed(2)} · sample #${scState.hover}`, Math.min(X(s.t)+8, w-140), Y(s.y)-8);
+  }
+  if (scState.brush){
+    const [a,b] = scState.brush;
+    ctx.fillStyle = "rgba(79,124,240,.12)"; ctx.fillRect(Math.min(a,b), padT, Math.abs(b-a), h-padT-padB);
+    ctx.strokeStyle = "rgba(79,124,240,.5)"; ctx.strokeRect(Math.min(a,b), padT, Math.abs(b-a), h-padT-padB);
+  }
+}
+sc.addEventListener("pointermove", e => {
+  const r = sc.getBoundingClientRect();
+  if (scState.brushing){ scState.brush[1] = e.clientX - r.left; drawScatter(); return; }
+  const px = e.clientX - r.left, py = e.clientY - r.top;
+  const padL=30,padR=8,padT=8,padB=16, [d0,d1] = scState.domain;
+  const X = t => padL + (t-d0)/(d1-d0)*(r.width-padL-padR), Y = v => r.height-padB - v/2.6*(r.height-padT-padB);
+  let best = -1, bd = 18;
+  SAMPLES.forEach((s,i) => { if (s.t<d0||s.t>d1) return;
+    const d = Math.hypot(px-X(s.t), py-Y(s.y)); if (d < bd){ bd = d; best = i; } });
+  scState.hover = best; drawScatter();
+});
+sc.addEventListener("pointerleave", () => { scState.hover = -1; drawScatter(); });
+sc.addEventListener("pointerdown", e => { const r = sc.getBoundingClientRect();
+  scState.brushing = true; scState.brush = [e.clientX-r.left, e.clientX-r.left]; sc.setPointerCapture(e.pointerId); });
+sc.addEventListener("pointerup", e => {
+  if (!scState.brushing) return;
+  scState.brushing = false;
+  const r = sc.getBoundingClientRect(), padL=30,padR=8, [d0,d1] = scState.domain;
+  const toT = px => d0 + (px-padL)/(r.width-padL-padR)*(d1-d0);
+  let [a,b] = scState.brush.map(toT); scState.brush = null;
+  if (Math.abs(b-a) >= 3){
+    scState.domain = [Math.max(0,Math.round(Math.min(a,b))), Math.min(48,Math.round(Math.max(a,b)))];
+    document.getElementById("zoomlabel").textContent = "zoomed — double-click to reset";
+  }
+  drawScatter();
+});
+sc.addEventListener("dblclick", () => { scState.domain = [0,48];
+  document.getElementById("zoomlabel").textContent = ""; drawScatter(); });
+drawScatter();
+
+// ---------- P3: diagnostics ----------
+const CPU = [1.4,1.2,1.3,1.1,1.2,1.4,1.5,1.2,1.1,1.2,1.3,1.2,1.1,1.2,1.3,1.4,1.2,1.1,1.2,1.2,1.3,1.2,1.1,1.2];
+const RAM = [20.8,20.9,21.0,21.1,21.0,21.2,21.3,21.2,21.4,21.4,21.3,21.4,21.5,21.4,21.3,21.4,21.4,21.5,21.4,21.4,21.3,21.4,21.4,21.4];
+(function dual(cv, a, b){
+  const [ctx,w,h] = setupCanvas(cv); let hover = -1;
+  function draw(){
+    ctx.clearRect(0,0,w,h);
+    [[a,"79,124,240","cpu"],[b,"18,181,165","ram"]].forEach(([data,rgb,name]) => {
+      const min = Math.min(...data), max = Math.max(...data), span = (max-min)||1;
+      ctx.beginPath();
+      data.forEach((v,i) => { const x = 3+i*(w-6)/(data.length-1), y = h-3-(v-min)/span*(h-6);
+        i?ctx.lineTo(x,y):ctx.moveTo(x,y); });
+      ctx.strokeStyle = `rgba(${rgb},.9)`; ctx.lineWidth = 1.5; ctx.stroke();
+      if (hover >= 0){ const x = 3+hover*(w-6)/(data.length-1), y = h-3-(data[hover]-min)/span*(h-6);
+        ctx.beginPath(); ctx.arc(x,y,3,0,7); ctx.fillStyle = `rgba(${rgb},1)`; ctx.fill(); }
+    });
+    if (hover >= 0){ ctx.fillStyle = cssVar("--ink"); ctx.font = "600 10px system-ui"; ctx.textAlign = "left";
+      ctx.fillText(`cpu ${a[hover]} · ram ${b[hover]} GB`, 6, 10); }
+  }
+  cv.addEventListener("pointermove", e => { const r = cv.getBoundingClientRect();
+    hover = Math.max(0,Math.min(a.length-1,Math.round((e.clientX-r.left)/r.width*(a.length-1)))); draw(); });
+  cv.addEventListener("pointerleave", () => { hover = -1; draw(); });
+  draw();
+})(document.getElementById("hostres"), CPU, RAM);
+
+const CTX = [8,9,12,11,14,18,22,19,24,28,26,31,29,33,38,34,30,27,29,26,24,22,20,18].map(v=>v*1000);
+spark(document.getElementById("ctxspark"), CTX, "167,139,250", { fmt: v => (v/1000).toFixed(0)+"k tok" });
+
+(function eff(cv){
+  const pts = [];
+  for (let i=0;i<26;i++) pts.push({ d:2+Math.random()*28, t:14+Math.random()*30, c: i%3?"18,181,165":"79,124,240" });
+  pts.push({ d:31, t:2, c:"240,160,79" });
+  const [ctx,w,h] = setupCanvas(cv); let hover = -1;
+  const X = d => 8 + d/34*(w-16), Y = t => h-6 - t/48*(h-12);
+  function draw(){
+    ctx.clearRect(0,0,w,h);
+    pts.forEach((p,i) => {
+      ctx.beginPath(); ctx.arc(X(p.d), Y(p.t), hover===i?5:2.5, 0, 7);
+      ctx.fillStyle = `rgba(${p.c},${hover>=0&&hover!==i?.2:.8})`; ctx.fill();
+    });
+    if (hover>=0){ const p = pts[hover];
+      ctx.fillStyle = cssVar("--ink"); ctx.font = "600 10px system-ui"; ctx.textAlign = "left";
+      ctx.fillText(`${p.t.toFixed(1)} t/s · ${p.d.toFixed(1)}s`, Math.min(X(p.d)+8,w-90), Y(p.t)-6); }
+  }
+  cv.addEventListener("pointermove", e => { const r = cv.getBoundingClientRect();
+    let best = -1, bd = 16;
+    pts.forEach((p,i) => { const d = Math.hypot(e.clientX-r.left-X(p.d), e.clientY-r.top-Y(p.t));
+      if (d<bd){ bd=d; best=i; } });
+    hover = best; draw(); });
+  cv.addEventListener("pointerleave", () => { hover = -1; draw(); });
+  draw();
+})(document.getElementById("eff"));
+
+// ---------- P4: conversations ----------
+const CONVOS = [
+  { id:"tui · Jul 19 11:58", meta:"…9f2c41 · mbp", stats:"14 req · med 16.9 t/s · $0.021",
+    series:[14,16,15,17,16,18,17,16,15,16,17,19,18,16], rgb:"18,181,165" },
+  { id:"cli · Jul 19 09:14", meta:"…77b10e · mini", stats:"36 req · med 22.4 t/s · $0.013",
+    series:[22,24,21,23,45,22,20,21,22,23,24,22], rgb:"79,124,240" },
+];
+CONVOS.forEach(c => {
+  const d = document.createElement("div"); d.className = "card convo";
+  d.innerHTML = `<div class="id">${c.id}<small>${c.meta}</small></div><div class="stats">${c.stats}</div><canvas></canvas>`;
+  document.getElementById("convos").appendChild(d);
+  spark(d.querySelector("canvas"), c.series, c.rgb, { fmt: v => v + " t/s" });
+});
+
+// ---------- P5: MoA execution ----------
+const MOA_TURNS = [22.6, 21.2, 24.8, 19.5, 22.1, 26.3, 20.4, 22.9, 21.5, 23.1, 19.8, 22.4, 21.7, 22.6];
+spark(document.getElementById("moaspark"), MOA_TURNS, "167,139,250", { median: 22.0, fmt: v => v.toFixed(1) + "s" });
+
+const TURN = {
+  id:"tui · Jul 18 22:41", preset:"test", total:22.6, out:"1.1k",
+  props: [
+    { model:"qwen3.6-27b-aggr. (WinPC)", dur:18.4, tps:11.2, rgb:"240,160,79" },
+    { model:"supergemma4-26b", dur:12.1, tps:16.8, rgb:"18,181,165" },
+    { model:"supergemma4-26b (2)", dur:9.8, tps:21.3, rgb:"18,181,165" },
+  ],
+  agg: { model:"qwen3.6-35b-distill", dur:4.2, rgb:"79,124,240" },
+};
+(function moa(){
+  const maxRef = Math.max(...TURN.props.map(p => p.dur));
+  const host = document.getElementById("moaaturn");
+  const chips = [
+    ["fan-out (parallel)", maxRef.toFixed(1) + "s"],
+    ["aggregation est.", "~" + TURN.agg.dur.toFixed(1) + "s"],
+    ["output", TURN.out + " tok"],
+    ["total", TURN.total.toFixed(1) + "s"],
+  ];
+  const rows = [
+    ...TURN.props.map(p => ({ label:p.model, dur:p.dur, tps:p.tps, left:0, width:p.dur/TURN.total*100, rgb:p.rgb, role:"proposer" })),
+    { label:TURN.agg.model + " · agg", dur:TURN.agg.dur, tps:null, left:maxRef/TURN.total*100, width:TURN.agg.dur/TURN.total*100, rgb:TURN.agg.rgb, role:"aggregator" },
+  ];
+  host.innerHTML = `
+    <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:8px">
+      <b style="font-size:13px">${TURN.id}</b>
+      <span style="font-size:11px;color:var(--dim)">preset ${TURN.preset}</span>
+      ${chips.map(([k,v]) => `<span style="font-size:10px;color:var(--dim);border:1px solid var(--edge);border-radius:999px;padding:2px 8px">${k} <b style="color:var(--ink)">${v}</b></span>`).join("")}
+    </div>
+    <div id="wrows"></div>
+    <div style="font-size:10px;color:var(--faint);margin-top:6px">hover a bar to isolate the call · proposers fan out in parallel, aggregation starts after the slowest</div>`;
+  const wrap = host.querySelector("#wrows");
+  rows.forEach((r, i) => {
+    const d = document.createElement("div");
+    d.style.cssText = "display:grid;grid-template-columns:190px 1fr 130px;gap:10px;align-items:center;padding:5px 4px;border-radius:8px;transition:background .12s,opacity .12s";
+    d.innerHTML = `<div style="font-size:11px;font-family:ui-monospace,Menlo,monospace;display:flex;align-items:center;gap:6px">
+        <span style="width:8px;height:8px;border-radius:2px;background:rgba(${r.rgb},1)"></span>${r.label}</div>
+      <div style="position:relative;height:14px;background:var(--edge2);border-radius:7px">
+        <div style="position:absolute;left:${r.left}%;width:${r.width}%;top:0;bottom:0;border-radius:7px;background:rgba(${r.rgb},.85)"></div></div>
+      <div class="num" style="font-size:11px;color:var(--dim)">${r.dur.toFixed(1)}s${r.tps ? " · " + r.tps + " t/s" : ""}</div>`;
+    d.addEventListener("mouseenter", () => {
+      wrap.querySelectorAll(":scope > div").forEach((x, j) => x.style.opacity = j === i ? 1 : .25);
+      d.style.background = "var(--edge2)";
+    });
+    d.addEventListener("mouseleave", () => {
+      wrap.querySelectorAll(":scope > div").forEach(x => x.style.opacity = 1);
+      d.style.background = "";
+    });
+    wrap.appendChild(d);
+  });
+})();
+
+// ---------- P6: per-model variance ----------
+const VARIANCE = [
+  { model:"qwen3.6-35b-distill", n:36, min:19.2, p25:21.4, med:22.4, p75:24.1, max:45.4, last:23.1, rgb:"79,124,240", loaded:true },
+  { model:"supergemma4-26b", n:98, min:12.1, p25:15.2, med:16.5, p75:17.9, max:19.4, last:18.2, rgb:"18,181,165", loaded:true },
+  { model:"kimi-k2-thinking", n:1, min:2.0, p25:2.0, med:2.0, p75:2.0, max:2.0, last:2.0, rgb:"240,160,79", loaded:false },
+];
+(function variance(){
+  const gmax = 46;
+  const host = document.getElementById("variance");
+  host.innerHTML = `<div style="display:grid;grid-template-columns:200px 1fr 150px;gap:10px;padding:6px 10px;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--dim)">
+    <span>model · t/s</span><span>spread (box = p25–p75)</span><span>latest</span></div>`;
+  VARIANCE.forEach(v => {
+    const d = document.createElement("div");
+    d.style.cssText = `display:grid;grid-template-columns:200px 1fr 150px;gap:10px;align-items:center;padding:7px 10px;border-top:1px solid var(--edge2);border-radius:6px;transition:background .12s;cursor:pointer;${v.loaded ? "" : "opacity:.45"}`;
+    const X = x => (x/gmax*100).toFixed(1) + "%";
+    d.innerHTML = `
+      <div style="font-size:11px;font-family:ui-monospace,Menlo,monospace;display:flex;align-items:center;gap:6px">
+        <span style="width:8px;height:8px;border-radius:2px;background:rgba(${v.rgb},1)"></span>${v.model}
+        <span style="color:var(--faint);font-size:10px">×${v.n}</span></div>
+      <div style="position:relative;height:16px">
+        <div style="position:absolute;left:${X(v.min)};width:${X(v.max-v.min)};top:7px;height:2px;background:rgba(${v.rgb},.3)"></div>
+        <div style="position:absolute;left:${X(v.p25)};width:${X(v.p75-v.p25)};top:3px;height:10px;border-radius:3px;background:rgba(${v.rgb},.25);border:1px solid rgba(${v.rgb},.5)"></div>
+        <div style="position:absolute;left:${X(v.med)};top:1px;bottom:1px;width:2px;background:rgba(${v.rgb},1)"></div>
+        <div style="position:absolute;left:${X(v.last)};top:4px;width:8px;height:8px;border-radius:50%;background:rgba(${v.rgb},1);transform:translateX(-4px)"></div>
+      </div>
+      <div class="num readout" style="font-size:11px;color:var(--dim)">● ${v.last}</div>`;
+    d.addEventListener("mouseenter", () => {
+      d.style.background = "var(--edge2)";
+      d.querySelector(".readout").innerHTML = `<b>${v.min}–${v.max}</b> · | ${v.med} · ● ${v.last}`;
+    });
+    d.addEventListener("mouseleave", () => {
+      d.style.background = "";
+      d.querySelector(".readout").textContent = `● ${v.last}`;
+    });
+    d.addEventListener("click", () => {
+      d.style.outline = d.style.outline ? "" : `2px solid rgba(${v.rgb},.6)`;
+    });
+    host.appendChild(d);
+  });
+  host.insertAdjacentHTML("beforeend", `<div style="font-size:10px;color:var(--faint);padding:6px 10px 8px">hover for exact min/median/max/latest · click to filter the dashboard to that model (mock)</div>`);
+})();
+</script>
+</body>
+</html>

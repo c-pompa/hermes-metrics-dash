@@ -1,0 +1,16 @@
+name: metrics-dashboard
+version: 0.5.0
+description: >-
+  Live LLM metrics dashboard — recent requests, health findings, usage map,
+  and a model-router interop view. Backend routes mount at
+  /api/plugins/metrics-dashboard/; the desktop plugin (same id) renders the
+  statusbar chip and metrics pane.
+# Informational from day one so the manifest stays stable: no agent tools in
+# this phase; the hooks phase adds post_api_request to feed token metrics
+# (eventually replacing the metrics-emit.py shell hook). NOTE: post_api_request
+# is the hook that carries `usage` + `api_duration` — post_llm_call has no
+# token data and cannot feed metrics. Core (2026-08-02) now also offers
+# outbound webhooks as a candidate transport for this pipeline.
+provides_tools: []
+provides_hooks:
+  - post_api_request

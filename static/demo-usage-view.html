@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Usage view mock — dev-api.example.com/#usage</title>
+<style>
+:root{--fg:#e8e6e3;--mut:#8a8f98;--acc:#5eead4;--acc2:#818cf8;--warn:#fbbf24;--err:#f87171;--line:#2a2f3a;--card:#16181d}
+*{box-sizing:border-box;margin:0}
+body{background:#0c0d10;color:var(--fg);font:14px/1.5 -apple-system,"Segoe UI",sans-serif;padding:28px;max-width:1060px}
+h1{font-size:19px;margin-bottom:2px}
+.sub{color:var(--mut);font-size:12.5px;margin-bottom:20px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px;opacity:0;transform:translateY(10px);transition:opacity .5s,transform .5s}
+.card.on{opacity:1;transform:none}
+.card h3{font-size:12px;letter-spacing:.4px;text-transform:uppercase;color:var(--mut);margin-bottom:12px}
+.wide{grid-column:1/-1}
+.note{color:var(--mut);font-size:11px;margin-top:10px}
+/* gauge */
+.gauge{display:flex;align-items:center;gap:18px}
+.ring{position:relative;width:110px;height:110px;flex:none}
+.ring svg{transform:rotate(-90deg)}
+.ring b{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:17px}
+.gmeta{flex:1}
+.gmeta .row{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px dashed var(--line);cursor:default}
+.gmeta .row:last-child{border:0}
+.gmeta small{color:var(--mut)}
+/* bars */
+.bar{display:grid;grid-template-columns:150px 1fr 78px;gap:10px;align-items:center;padding:6px 0;cursor:default}
+.bar:hover{background:#ffffff08;border-radius:6px}
+.track{height:16px;background:#ffffff0d;border-radius:5px;overflow:hidden;display:flex}
+.track i{display:block;height:100%;width:0;transition:width .9s cubic-bezier(.2,.7,.3,1)}
+.track i.p{background:var(--acc)}
+.track i.c{background:var(--acc2)}
+.bar .v{text-align:right;font-variant-numeric:tabular-nums}
+.legend{display:flex;gap:14px;color:var(--mut);font-size:11.5px;margin-top:8px}
+.legend s{text-decoration:none;display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+/* trend */
+.trend{display:flex;align-items:flex-end;gap:6px;height:120px;margin-top:6px}
+.trend .d{flex:1;display:flex;flex-direction:column;justify-content:flex-end;height:100%;cursor:default;position:relative}
+.trend .d u{display:block;background:var(--acc);border-radius:3px 3px 0 0;height:0;transition:height .8s cubic-bezier(.2,.7,.3,1)}
+.trend .d:hover u{background:#7ffce6}
+.trend .d em{font-style:normal;color:var(--mut);font-size:9.5px;text-align:center;margin-top:4px}
+/* tooltip */
+#tip{position:fixed;z-index:9;pointer-events:none;background:#10131a;border:1px solid var(--line);border-radius:8px;padding:8px 11px;font-size:12px;max-width:280px;white-space:pre-line;box-shadow:0 8px 24px #000a;opacity:0;transition:opacity .12s}
+#tip b{color:var(--acc)}
+[data-tip]{cursor:default}
+</style>
+</head>
+<body>
+<h1>Usage — mock view for dev-api.example.com/#usage</h1>
+<p class="sub">Widget-lab vocabulary on the real Usage sample data (Growth plan, ada@example.com) · hover anything</p>
+
+<div class="grid">
+
+<!-- 1. allowance gauge -->
+<div class="card">
+<h3>Allowance · this month</h3>
+<div class="gauge">
+<div class="ring">
+<svg width="110" height="110"><circle cx="55" cy="55" r="46" stroke="#ffffff12" stroke-width="10" fill="none"/><circle cx="55" cy="55" r="46" stroke="var(--acc)" stroke-width="10" fill="none" stroke-linecap="round" stroke-dasharray="289" stroke-dashoffset="289" data-ring="215"/></svg>
+<b data-count="26" data-suffix="%">26%</b>
+</div>
+<div class="gmeta">
+<div class="row" data-tip="<b>1284 of 5000 requests</b> — metered in the same monthly window as units
+resets 2026-10-01 · included with Growth"><span>Requests</span><b>1284 / 5000</b></div>
+<div class="row" data-tip="<b>3716 requests left</b> — at this month's pace (~43/day) you finish on day 86, inside the window
+no overage yet"><span>Left</span><b>3716</b></div>
+<div class="row" data-tip="<b>1500 units</b> — token-derived, billed separately from request count
+qwen3 1180 + gpt-oss-20b 320"><span>Units</span><b>1500</b></div>
+<div class="row" data-tip="<b>resets 2026-10-01</b> — 11 days away
+unused allowance does not roll over"><span>Resets</span><b>Oct 1</b></div>
+</div>
+</div>
+</div>
+
+<!-- 2. units by model, prompt vs completion -->
+<div class="card">
+<h3>Units by model · token split</h3>
+<div class="bar" data-tip="<b>qwen3-coder-next</b> — 1180 units (78.7%)
+1284 requests · $0.5900
+prompt 2.10M tok · completion 188K tok
+ctx ceiling 65536 — longest prompt this month was 61k"><span>qwen3-coder-next</span><span class="track"><i class="p" data-w="72.2"></i><i class="c" data-w="6.5"></i></span><span class="v">1180 u</span></div>
+<div class="bar" data-tip="<b>gpt-oss-20b</b> — 320 units (21.3%)
+412 requests · $0.1600
+prompt 604K tok · completion 51K tok
+ctx ceiling 32768"><span>gpt-oss-20b</span><span class="track"><i class="p" data-w="19.6"></i><i class="c" data-w="1.7"></i></span><span class="v">320 u</span></div>
+<div class="bar" data-tip="<b>llama-3.3-70b</b> — no units this window
+listed in the catalog but not loaded on node-1
+first request would cold-load 40.5 GB"><span style="color:var(--mut)">llama-3.3-70b</span><span class="track"></span><span class="v" style="color:var(--mut)">—</span></div>
+<div class="legend"><span><s style="background:var(--acc)"></s>prompt tok share</span><span><s style="background:var(--acc2)"></s>completion tok share</span></div>
+</div>
+
+<!-- 3. value -->
+<div class="card">
+<h3>What the window was worth</h3>
+<div class="gauge">
+<div class="ring">
+<svg width="110" height="110"><circle cx="55" cy="55" r="46" stroke="#ffffff12" stroke-width="10" fill="none"/><circle cx="55" cy="55" r="46" stroke="var(--warn)" stroke-width="10" fill="none" stroke-linecap="round" stroke-dasharray="289" stroke-dashoffset="289" data-ring="266"/></svg>
+<b data-count="0.75" data-prefix="$">$0.75</b>
+</div>
+<div class="gmeta">
+<div class="row" data-tip="<b>$0.75 total value</b> — units x per-unit price
+qwen3 $0.59 + gpt-oss-20b $0.16"><span>Value this window</span><b>$0.75</b></div>
+<div class="row" data-tip="<b>2000 u per $1</b> — effective rate across both models
+Starter/Growth meter units, not raw tokens"><span>Rate</span><b>2000 u / $1</b></div>
+<div class="row" data-tip="<b>projected $1.98 by reset</b> — window pace carried to Oct 1
+vs $20 Growth plan — margin funds node hours"><span>Projected</span><b>$1.98 / mo</b></div>
+</div>
+</div>
+</div>
+
+<!-- 4. daily trend -->
+<div class="card wide">
+<h3>Daily units · last 14 days <small style="text-transform:none;color:var(--mut)">(feeds from GET /usage/trend)</small></h3>
+<div class="trend">
+<div class="d" data-tip="<b>Sep 4</b> — 46 units · 38 requests · $0.02"><u data-h="18"></u><em>4</em></div>
+<div class="d" data-tip="<b>Sep 5</b> — 62 units · 51 requests · $0.03"><u data-h="26"></u><em>5</em></div>
+<div class="d" data-tip="<b>Sep 6</b> — 30 units · 26 requests · $0.01"><u data-h="12"></u><em>6</em></div>
+<div class="d" data-tip="<b>Sep 7</b> — 88 units · 74 requests · $0.04"><u data-h="36"></u><em>7</em></div>
+<div class="d" data-tip="<b>Sep 8</b> — 130 units · 111 requests · $0.07"><u data-h="54"></u><em>8</em></div>
+<div class="d" data-tip="<b>Sep 9</b> — 74 units · 61 requests · $0.04"><u data-h="30"></u><em>9</em></div>
+<div class="d" data-tip="<b>Sep 10</b> — 95 units · 80 requests · $0.05"><u data-h="40"></u><em>10</em></div>
+<div class="d" data-tip="<b>Sep 11</b> — 118 units · 97 requests · $0.06"><u data-h="49"></u><em>11</em></div>
+<div class="d" data-tip="<b>Sep 12</b> — 140 units · 118 requests · $0.07"><u data-h="58"></u><em>12</em></div>
+<div class="d" data-tip="<b>Sep 13</b> — 66 units · 55 requests · $0.03"><u data-h="27"></u><em>13</em></div>
+<div class="d" data-tip="<b>Sep 14</b> — 152 units · 126 requests · $0.08"><u data-h="63"></u><em>14</em></div>
+<div class="d" data-tip="<b>Sep 15</b> — 104 units · 89 requests · $0.05"><u data-h="43"></u><em>15</em></div>
+<div class="d" data-tip="<b>Sep 16</b> — 161 units · 134 requests · $0.08 — window peak"><u data-h="67"></u><em>16</em></div>
+<div class="d" data-tip="<b>Sep 17 (today)</b> — 34 units · 29 requests · $0.02 — in progress"><u data-h="14"></u><em>17</em></div>
+</div>
+<p class="note">Hover a day for units, requests and value · today's bar grows in live as turns land</p>
+</div>
+
+</div>
+<div id="tip"></div>
+<script>
+(function(){
+  var tip = document.getElementById("tip");
+  function show(el){ var t = el.getAttribute("data-tip"); if(!t) return; tip.innerHTML = t; tip.style.opacity = 1; }
+  function move(e){ tip.style.left = Math.min(e.clientX + 14, innerWidth - tip.offsetWidth - 8) + "px";
+                    tip.style.top  = Math.min(e.clientY + 14, innerHeight - tip.offsetHeight - 8) + "px"; }
+  function hide(){ tip.style.opacity = 0; }
+  document.addEventListener("mouseover", function(e){
+    var el = e.target.closest("[data-tip]"); if (el) show(el); else hide();
+  });
+  document.addEventListener("mousemove", move);
+
+  // reveal + grow on first view
+  var io = new IntersectionObserver(function(es){
+    es.forEach(function(en){
+      if (!en.isIntersecting || en.target.classList.contains("on")) return;
+      en.target.classList.add("on");
+      en.target.querySelectorAll("[data-w]").forEach(function(i){ i.style.width = i.getAttribute("data-w") + "%"; });
+      en.target.querySelectorAll("[data-h]").forEach(function(u){ u.style.height = Math.min(+u.getAttribute("data-h"), 96) + "%"; });
+      en.target.querySelectorAll("[data-ring]").forEach(function(c){ c.style.transition = "stroke-dashoffset .9s cubic-bezier(.2,.7,.3,1)"; c.style.strokeDashoffset = c.getAttribute("data-ring"); });
+      en.target.querySelectorAll("[data-count]").forEach(countUp);
+      io.unobserve(en.target);
+    });
+  }, {threshold:.25});
+  document.querySelectorAll(".card").forEach(function(c){ io.observe(c); });
+
+  function countUp(b){
+    var end = parseFloat(b.getAttribute("data-count")),
+        pre = b.getAttribute("data-prefix") || "",
+        suf = b.getAttribute("data-suffix") || "",
+        dec = (end % 1 !== 0) ? 2 : 0, t0 = null, done = false;
+    function fmt(v){ return pre + v.toFixed(dec) + suf; }
+    function finish(){ if (!done) { done = true; b.textContent = fmt(end); } }
+    function step(t){
+      if (done) return;
+      if (!t0) t0 = t;
+      var k = Math.min((t - t0) / 900, 1); k = 1 - Math.pow(1 - k, 3);
+      b.textContent = fmt(end * k);
+      if (k < 1) requestAnimationFrame(step); else done = true;
+    }
+    requestAnimationFrame(step);
+    setTimeout(finish, 1200);   // rAF may never tick (headless, background tab)
+  }
+})();
+</script>
+</body>
+</html>
